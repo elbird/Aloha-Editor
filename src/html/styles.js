@@ -8,7 +8,7 @@
 define([
 	'dom',
 	'html/predicates'
-], function HtmlStyles(
+], function (
 	Dom,
 	Predicates
 ) {
@@ -65,6 +65,7 @@ define([
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function hasBlockStyle(node) {
 		if (!node) {
@@ -92,6 +93,7 @@ define([
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function hasInlineStyle(node) {
 		return !hasBlockStyle(node);
@@ -104,6 +106,7 @@ define([
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function hasLinebreakingStyle(node) {
 		return LINE_BREAKING_VOID_ELEMENTS[node.nodeName]
@@ -130,7 +133,7 @@ define([
 	 * TODO This list is incomplete but should look something like
 	 * http://www.w3.org/TR/CSS21/propidx.html
 	 *
-	 * @type <string, boolean>
+	 * @type {Object.<string, boolean>}
 	 */
 	var notInheritedStyles = {
 		'background-color': true,
@@ -143,7 +146,7 @@ define([
 	 *
 	 * TODO complete the list of inherited/notInheritedStyles
 	 *
-	 * @param  {String} styleName
+	 * @param  {string} styleName
 	 * @return {boolean}
 	 */
 	function isStyleInherited(styleName) {
@@ -155,6 +158,6 @@ define([
 		isWhiteSpacePreserveStyle : isWhiteSpacePreserveStyle,
 		hasBlockStyle             : hasBlockStyle,
 		hasInlineStyle            : hasInlineStyle,
-		hasLinebreakingStyle      : hasLinebreakingStyle,
+		hasLinebreakingStyle      : hasLinebreakingStyle
 	};
 });

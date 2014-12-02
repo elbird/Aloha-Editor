@@ -1,22 +1,21 @@
-/* image.js is part of Aloha Editor project http://aloha-editor.org
+/** image.js is part of Aloha Editor project http://aloha-editor.org
  *
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ * @namespace images
  */
 
 define([
 	'boundaries',
 	'dom',
 	'image/image-selection',
-	'paste',
-	'ranges'
-], function(
+	'paste'
+], function (
 	Boundaries,
 	Dom,
 	ImageSelection,
-	Paste,
-	Ranges
+	Paste
 ) {
 	'use strict';
 
@@ -69,13 +68,17 @@ define([
 	 * @param {Array.<Object.<string, string>>} attributes Attributes
 	 *        for the new image
 	 * @param {Document} doc
+	 * @memberOf images
 	 */
 	function insert(attributes, doc) {
-		doc = doc || document;
-		var range = Ranges.get(doc);
-		if (range) {
-			insertFromRange(range, attributes);
+		var boundaries = Boundaries.get(doc);
+		if (!boundaries) {
+			return;
 		}
+		insertFromRange(
+			Boundaries.range(boundaries[0], boundaries[1]),
+			attributes
+		);
 	}
 
 	/**
@@ -97,13 +100,17 @@ define([
 	 * Set `attributes` to all images in the actual selection.
 	 * @param {Array.<Object.<string, string>>} attributes
 	 * @param {Document} doc
+	 * @memberOf images
 	 */
 	function setAttributes(attributes, doc) {
-		doc = doc || document;
-		var range = Ranges.get(doc);
-		if (range) {
-			setAttributesFromRange(range, attributes);
+		var boundaries = Boundaries.get(doc);
+		if (!boundaries) {
+			return;
 		}
+		setAttributesFromRange(
+			Boundaries.range(boundaries[0], boundaries[1]),
+			attributes
+		);
 	}
 
 	return {

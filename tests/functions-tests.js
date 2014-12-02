@@ -15,12 +15,8 @@
 	test('noop', function () {
 		tested.push('noop');
 		equal(
-			fn.noop.toString().replace(/[\r\n]/g, '')
-			                  .replace(/\s+noop\s*\(\)\s*/, '()')
-			                  .replace(/['"]use strict['"]\;/, '')
-			                  .replace(/\{\s*\}/g, '{}')
-			                  .replace(/function\s+\(/, 'function('),
-			'function(){}'
+			fn.noop(),
+			undefined
 		);
 	});
 
@@ -44,12 +40,6 @@
 		equal(fn.partial(function (arg) {
 			return arg.foo;
 		}, {foo: 'foo'})(), 'foo');
-	});
-
-	test('outparameter', function() {
-		tested.push('outparameter');
-		equal(fn.outparameter(true)(), true);
-		equal(fn.outparameter('hello')(), 'hello');
 	});
 
 	test('strictEquals', function() {

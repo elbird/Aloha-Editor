@@ -4,42 +4,42 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ * @namespace blocks
  */
 define([
 	'dom',
 	'events',
-	'dragdrop'
-], function Blocks(
+	'dragdrop',
+	'browsers',
+	'editables'
+], function (
 	Dom,
 	Events,
-	DragDrop
+	DragDrop,
+	Browsers,
+	Editables
 ) {
 	'use strict';
 
 	/**
-	 * Reads the given block's data.
+	 * List of style property/value pairs.
 	 *
-	 * @param  {Element} block
-	 * @return {Object}
+	 * @private
+	 * @type {Object.<string, string>}
 	 */
-	function read(block) {
-		return JSON.parse(block.getAttribute('data-aloha'));
-	}
-
-	/**
-	 * Writes the given block's data.
-	 *
-	 * @param  {Element} block
-	 * @param  {Object}  data
-	 * @return {Object}
-	 */
-	function write(block, data) {
-		block.setAttribute('data-aloha', JSON.stringify(data));
-	}
+	var draggingStyles = [
+		[
+			Browsers.VENDOR_PREFIX + 'transition',
+			Browsers.VENDOR_PREFIX + 'transform 0.2s ease-out'
+		],
+		[Browsers.VENDOR_PREFIX + 'transform', 'scale(0.9)'],
+		['opacity', '0.5']
+	];
 
 	/**
 	 * Creates a drag and drop context for copying.
 	 *
+	 * @private
 	 * @param  {Element} block
 	 * @return {Context}
 	 */
@@ -55,6 +55,7 @@ define([
 	/**
 	 * Creates a drag and drop context for moving.
 	 *
+	 * @private
 	 * @param  {Element} block
 	 * @return {Context}
 	 */
@@ -71,57 +72,79 @@ define([
 	 * Whether or not the given event is an event targeting an Aloha Block
 	 * element.
 	 *
-	 * @param  {Event}   event
+	 * @param  {AlohaEvent}   event
 	 * @return {boolean}
 	 */
 	function isBlockEvent(event) {
-		return Dom.hasClass(event.nativeEvent.target, event.editor.BLOCK_CLASS);
+		return 'IMG' === event.nativeEvent.target.nodeName
+		    || Dom.hasClass(event.nativeEvent.target, 'aloha-block');
 	}
 
-	/**
-	 * Process events on Aloha Blocks.
-	 *
-	 * @param  {Event} event
-	 * @return {Event}
-	 */
-	function handle(event) {
-		var context;
-		switch (event.type) {
-		case 'aloha':
-			var blocks = event.editable.elem.querySelectorAll('.aloha-block');
-			[].forEach.call(blocks, function (block) {
-				block.setAttribute('contentEditable', 'false');
+	function initializeBlocks(editable) {
+		var blocks = Dom.query('.aloha-block,img', editable.ownerDocument);
+		blocks.forEach(function (block) {
+			block.setAttribute('contentEditable', 'false');
+			Dom.setStyle(block, 'cursor', Browsers.VENDOR_PREFIX + 'grab');
+		});
+		return blocks;
+	}
+
+	function handleMouseDown(event) {
+		var block = event.nativeEvent.target;
+		if (isBlockEvent(event) && DragDrop.isDraggable(block)) {
+			event.dnd = Events.hasKeyModifier(event, 'ctrl')
+			          ? copyContext(block)
+			          : moveContext(block);
+		}
+	}
+
+	function handleDragStart(event) {
+		if (isBlockEvent(event)) {
+			draggingStyles.forEach(function (style) {
+				if (event.dnd.target) {
+					Dom.setStyle(event.dnd.target, style[0], style[1]);
+				}
+				Dom.setStyle(event.dnd.element, style[0], style[1]);
 			});
-			break;
-		case 'mousedown':
-			var block = event.nativeEvent.target;
-			if (isBlockEvent(event) && DragDrop.isDraggable(block)) {
-				event.editor.dndContext = Events.isWithCtrl(event)
-				                        ? copyContext(block)
-				                        : moveContext(block);
-			}
-			break;
-		case 'dragstart':
-			if (isBlockEvent(event)) {
-				context = event.editor.dndContext;
-				Dom.addClass(context.element, 'aloha-block-dragging');
-				Dom.addClass(context.target, 'aloha-block-dragging');
-			}
-			break;
-		case 'dragend':
-			if (isBlockEvent(event)) {
-				context = event.editor.dndContext;
-				Dom.removeClass(context.element, 'aloha-block-dragging');
-				Dom.removeClass(context.target, 'aloha-block-dragging');
-			}
-			break;
+		}
+	}
+
+	function handleDragEnd(event) {
+		if (isBlockEvent(event)) {
+			draggingStyles.forEach(function (style) {
+				if (event.dnd.target) {
+					Dom.setStyle(event.dnd.target, style[0], '');
+				}
+				Dom.setStyle(event.dnd.element, style[0], '');
+			});
+		}
+	}
+
+	function handleDragOver(event) {}
+
+	var handlers = {
+		'mousedown' : handleMouseDown,
+		'dragstart' : handleDragStart,
+		'dragend'   : handleDragEnd,
+		'dragover'  : handleDragOver
+	};
+
+	/**
+	 * Updates editable
+	 *
+	 * @param  {AlohaEvent} event
+	 * @return {AlohaEvent}
+	 * @memberOf blocks
+	 */
+	function handleBlocks(event) {
+		if (handlers[event.type]) {
+			handlers[event.type](event);
 		}
 		return event;
 	}
 
 	return {
-		read   : read,
-		write  : write,
-		handle : handle
+		handleBlocks     : handleBlocks,
+		initializeBlocks : initializeBlocks
 	};
 });

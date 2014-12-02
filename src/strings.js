@@ -7,8 +7,9 @@
  *
  * Reference:
  * http://www.w3.org/TR/html401/struct/text.html
+ * @namespace strings
  */
-define([], function Strings() {
+define(['arrays'], function (Arrays) {
 	'use strict';
 
 	/**
@@ -16,6 +17,7 @@ define([], function Strings() {
 	 * http://www.unicode.org/Public/UNIDATA/Scripts.txt
 	 *
 	 * @type {Array.<string>}
+	 * @memberOf strings
 	 */
 	var ZERO_WIDTH_CHARACTERS = [
 		'\\u200B', // ZWSP
@@ -30,6 +32,7 @@ define([], function Strings() {
 	 * http://www.w3.org/TR/html5/infrastructure.html#common-parser-idioms
 	 *
 	 * @type {Array.<string>}
+	 * @memberOf strings
 	 */
 	var NON_BREAKING_SPACE_CHARACTERS = [
 		'\\u00A0', // NON BREAKING SPACE ("&nbsp;")
@@ -43,6 +46,7 @@ define([], function Strings() {
 	 * http://www.unicode.org/Public/UNIDATA/PropList.txt
 	 *
 	 * @type {Array.<string>}
+	 * @memberOf strings
 	 */
 	var WHITE_SPACE_CHARACTERS = [
 		'\\u0009',
@@ -79,6 +83,7 @@ define([], function Strings() {
 	 * These include whitespaces, hyphens, and punctuation.
 	 *
 	 * @type {Array.<string>}
+	 * @memberOf strings
 	 */
 	var WORD_BREAKING_CHARACTERS = [
 		'\u0041-', '\u005A', '\u0061-', '\u007A', '\u00AA', '\u00B5', '\u00BA',
@@ -205,13 +210,23 @@ define([], function Strings() {
 	 * Regular expression that matches a white space character.
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var WHITE_SPACE = new RegExp('[' + WHITE_SPACE_CHARACTERS.join('') + ']');
+
+	/**
+	 * Regular expression that matches one or more white space characters.
+	 *
+	 * @type {RegExp}
+	 * @memberOf strings
+	 */
+	var WHITE_SPACES = new RegExp('[' + WHITE_SPACE_CHARACTERS.join('') + ']+');
 
 	/**
 	 * Regular expression that matches a zero width character.
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var ZERO_WIDTH_SPACE = new RegExp('[' + ZERO_WIDTH_CHARACTERS.join('') + ']');
 
@@ -219,8 +234,11 @@ define([], function Strings() {
 	 * Regular expression that matches a non breaking space character.
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var NON_BREAKING_SPACE = new RegExp('[' + NON_BREAKING_SPACE_CHARACTERS.join('') + ']');
+
+	var joinedWhiteSpaces = WHITE_SPACE_CHARACTERS.join('');
 
 	/**
 	 * Matches space characters.
@@ -229,9 +247,10 @@ define([], function Strings() {
 	 * the zero-width character ("\u200B").
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var SPACE = new RegExp('['
-	          + WHITE_SPACE_CHARACTERS.join('')
+	          + joinedWhiteSpaces
 	          + ZERO_WIDTH_CHARACTERS.join('')
 	          + NON_BREAKING_SPACE_CHARACTERS.join('')
 	          + ']');
@@ -240,21 +259,29 @@ define([], function Strings() {
 	 * Matches non-space characters.  Complement to Strings.SPACE.
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var NOT_SPACE = new RegExp('[^'
-	              + WHITE_SPACE_CHARACTERS.join('')
+	              + joinedWhiteSpaces
 	              + ZERO_WIDTH_CHARACTERS.join('')
 	              + NON_BREAKING_SPACE_CHARACTERS.join('')
 	              + ']');
 
 	var wbc = WORD_BREAKING_CHARACTERS.join('');
 
+	/**
+	 * This RegExp is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf strings
+	 */
 	var WORD_BREAKING_CHARACTER = new RegExp('[' + wbc + ']');
 
 	/**
 	 * Matches a word boundary.
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var WORD_BOUNDARY = new RegExp('[^' + wbc + ']');
 
@@ -263,6 +290,7 @@ define([], function Strings() {
 	 * the end of a string.
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var WORD_BOUNDARY_FROM_END = new RegExp('[^' + wbc + '][' + wbc + ']*$');
 
@@ -276,8 +304,19 @@ define([], function Strings() {
 	 * http://en.wikipedia.org/wiki/C0_and_C1_control_codes
 	 *
 	 * @type {RegExp}
+	 * @memberOf strings
 	 */
 	var CONTROL_CHARACTER = /[\x00-\x1f\x7f-\x9f]/;
+
+	/**
+	 * Matches white spaces at the beginning or ending of a string.
+	 *
+	 * @type {RegExp}
+	 * @memberOf strings
+	 */
+	var TERMINAL_WHITE_SPACES = new RegExp(
+		'^[' + joinedWhiteSpaces + ']+|[' + joinedWhiteSpaces + ']+$'
+	);
 
 	/**
 	 * Splits a string into a list of individual words.
@@ -286,9 +325,10 @@ define([], function Strings() {
 	 *
 	 * @param  {string} str
 	 * @return {Array.<string>}
+	 * @memberOf strings
 	 */
 	function words(str) {
-		str = str.trim();
+		str = str.trim().replace(TERMINAL_WHITE_SPACES, '');
 		if (isEmpty(str)) {
 			return [];
 		}
@@ -304,6 +344,7 @@ define([], function Strings() {
 	 * For example 'data-my-attr' becomes 'dataMyAttr'.
 	 *
 	 * @param {string} str
+	 * @memberOf strings
 	 */
 	var dashesToCamelCase = (function () {
 		var dashPrefixedCharacter = /[\-]([a-z])/gi;
@@ -327,6 +368,7 @@ define([], function Strings() {
 	 *
 	 * @param  {string} str
 	 * @return {string}
+	 * @memberOf strings
 	 */
 	var camelCaseToDashes = (function () {
 		var uppercaseCharacter = /[A-Z]/g;
@@ -355,6 +397,7 @@ define([], function Strings() {
 	 *
 	 * @param  {RegExp} pattern
 	 * @return {Array.<string>}
+	 * @memberOf strings
 	 */
 	function splitIncl(str, pattern) {
 		var result = [];
@@ -379,6 +422,7 @@ define([], function Strings() {
 	 *
 	 * @param  {string=} str
 	 * @return {boolean}
+	 * @memberOf strings
 	 */
 	function isEmpty(str) {
 		return '' === str || null == str;
@@ -394,12 +438,84 @@ define([], function Strings() {
 	 *
 	 * @param  {string} chr
 	 * @return {boolean}
+	 * @memberOf strings
 	 */
 	function isControlCharacter(chr) {
 		return CONTROL_CHARACTER.test(chr);
 	}
 
+	/**
+	 * Adds one or more entries to a space-delimited list.
+	 * Will return a new space delimited list with the new
+	 * entries added to the end.
+	 *
+	 * The function is designed to deal with shoddy
+	 * whitespace separations such as multiple spaces or
+	 * even newlines, that may be used on a DOM Element's
+	 * class attribute.
+	 *
+	 * @param  {!string}    list
+	 * @param  {...!string} entry
+	 * @return {string}
+	 * @memberOf strings
+	 */
+	function addToList(list) {
+		var listEntries = list.split(WHITE_SPACES);
+		var newEntries = Arrays.coerce(arguments).slice(1);
+		var newList = [];
+
+		for (var i=0; i<listEntries.length; i++) {
+			if (listEntries[i]) {
+				newList.push(listEntries[i]);
+			}
+		}
+		for (i=0; i<newEntries.length; i++) {
+			if (newEntries[i]) {
+				newList.push(newEntries[i]);
+			}
+		}
+		return newList.join(' ');
+	}
+
+	/**
+	 * Removes one or more entries from a space-delimited list.
+	 * Will return a new space delimited list with the specified
+	 * entries removed.
+	 *
+	 * The function is designed to deal with shoddy
+	 * whitespace separations such as multiple spaces or
+	 * even newlines, that may be used on a DOM Element's
+	 * class attribute.
+	 *
+	 * @param  {!string}    list
+	 * @param  {...!string} entry
+	 * @return {string}
+	 * @memberOf strings
+	 */
+	function removeFromList(list) {
+		var listArray = list.split(WHITE_SPACES);
+		var removeEntries = Arrays.coerce(arguments).slice(1);
+		return Arrays.difference(listArray, removeEntries).join(' ');
+	}
+
+	/**
+	 * Produces a space-delimited list with unique entries from
+	 * the provided list. Example:
+	 * 'one two three two four two four five' => 'one two three four five'
+	 *
+	 * @param  {!string} list
+	 * @return {string}
+	 * @memberOf strings
+	 */
+	function uniqueList(list) {
+		return Arrays.unique(list.split(WHITE_SPACES)).join(' ');
+	}
+
 	return {
+		addToList                     : addToList,
+		removeFromList                : removeFromList,
+		uniqueList                    : uniqueList,
+
 		words                         : words,
 		splitIncl                     : splitIncl,
 
@@ -413,11 +529,13 @@ define([], function Strings() {
 		SPACE                         : SPACE,
 		NOT_SPACE                     : NOT_SPACE,
 		WHITE_SPACE                   : WHITE_SPACE,
+		WHITE_SPACES                  : WHITE_SPACES,
 		ZERO_WIDTH_SPACE              : ZERO_WIDTH_SPACE,
 		NON_BREAKING_SPACE            : NON_BREAKING_SPACE,
 		WORD_BOUNDARY                 : WORD_BOUNDARY,
 		WORD_BOUNDARY_FROM_END        : WORD_BOUNDARY_FROM_END,
 		WORD_BREAKING_CHARACTER       : WORD_BREAKING_CHARACTER,
+		TERMINAL_WHITE_SPACES         : TERMINAL_WHITE_SPACES,
 
 		ZERO_WIDTH_CHARACTERS         : ZERO_WIDTH_CHARACTERS,
 		WHITE_SPACE_CHARACTERS        : WHITE_SPACE_CHARACTERS,

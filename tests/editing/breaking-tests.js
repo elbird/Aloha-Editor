@@ -1,27 +1,24 @@
-(function (aloha) {
+(function (aloha, module, test, equal) {
 	'use strict';
 
-	var Ranges = aloha.ranges;
-	var Editing = aloha.editing;
-	var BoundaryMarkers = aloha.boundarymarkers;
+	return;
 
 	module('editing');
 
 	function runTest(before, after, op, context) {
-		var boundaries = BoundaryMarkers.extract($(before)[0]);
-		var actual = BoundaryMarkers.hint(op(boundaries));
+		var boundaries = aloha.markers.extract($(before)[0]);
+		var actual = aloha.markers.hint(op(boundaries));
 		equal(actual, after, before + ' ⇒ ' + after);
 	}
 
-	test('break()', function () {
+	test('breakline()', function () {
 		(function t(before, after, linebreak) {
 			runTest(before, after, function (boundaries) {
-				return Editing.break(
-					Ranges.fromBoundaries(boundaries[0], boundaries[1]),
+				return aloha.editing.breakline(
+					aloha.ranges.fromBoundaries(boundaries[0], boundaries[1]),
 					'h1',
 					linebreak
 				);
-				return [next, next];
 			});
 			return t;
 		})(
@@ -59,7 +56,8 @@
 			'<h1><u style="text-decoration: none">{}foo</u></h1>'
 		)(
 			'<div contenteditable="true">'
-				+ '<strike><b style="text-decoration: underline"><i style="font-weight: normal">[]</i>foo</b></strike>'
+				+ '<strike><b style="text-decoration: underline">'
+				+ '<i style="font-weight: normal">[]</i>foo</b></strike>'
 				+ '</div>',
 			'<strike><b style="text-decoration: underline">{}foo</b></strike>'
 		)(
@@ -87,7 +85,7 @@
 			true
 		)(
 			'<div contenteditable="true"><i>foo{}</i></div></div>',
-			'<div contenteditable="true"><i>foo<br><br>{}</i></div>',
+			'<div contenteditable="true"><i>foo<br>{}<br></i></div>',
 			true
 		)(
 			'<div contenteditable="true"><i>foo{}<br></i></div>',
@@ -123,7 +121,7 @@
 			true
 		)(
 			'<div contenteditable="true"><p>foo<i>bar[]</i></p></div>',
-			'<p>foo<i>bar<br><br>{}</i></p>',
+			'<p>foo<i>bar<br>{}<br></i></p>',
 			true
 		)
 
@@ -285,4 +283,4 @@
 		);
 	});
 
-}(window.aloha));
+}(window.aloha, window.module, window.test, window.equal));

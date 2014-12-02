@@ -12,9 +12,9 @@ define([
 	'dom',
 	'html',
 	'arrays',
-	'ms-word/lists',
-	'ms-word/tables',
-	//'ms-word/toc',
+	'./ms-word/lists',
+	'./ms-word/tables',
+	'./ms-word/toc',
 	'./utils'
 ], function (
 	Dom,
@@ -22,7 +22,7 @@ define([
 	Arrays,
 	Lists,
 	Tables,
-	//TOC,
+	Toc,
 	Utils
 ) {
 	'use strict';
@@ -54,7 +54,7 @@ define([
 	 * to the visual presentation of the content).
 	 *
 	 * @private
-	 * @param  {Node} node
+	 * @param  {!Node} node
 	 * @return {boolean}
 	 */
 	function isSuperfluous(node) {
@@ -63,27 +63,12 @@ define([
 	}
 
 	/**
-	 * Creates a rewrapped copy of `element`.  Will create a an element based
-	 * on `nodeName`, and copies the content of the given element into it.
-	 *
-	 * @private
-	 * @param  {Element}  element
-	 * @param  {String}   nodeName
-	 * @return {Element}
-	 */
-	function rewrap(element, nodeName) {
-		var node = element.ownerDocument.createElement(nodeName);
-		Dom.copy(Dom.children(element), node);
-		return node;
-	}
-
-	/**
 	 * Returns the the non-namespaced version of the given node's nodeName.
 	 * If the node is not namespaced, will return null.
 	 *
 	 * @private
-	 * @param  {Node} node
-	 * @return {String}
+	 * @param  {!Node} node
+	 * @return {string}
 	 */
 	function namespacedNodeName(node) {
 		var match = node.nodeName.match(NAMESPACED_NODENAME);
@@ -94,10 +79,10 @@ define([
 	 * Returns a clean copy of the given node.
 	 *
 	 * @private
-	 * @param  {Node} node
+	 * @param  {!Node} node
 	 * @return {Array.<Node>}
 	 */
-	function clean(node) {
+	function clean(rules, node) {
 		if (isSuperfluous(node)) {
 			return [];
 		}
@@ -105,14 +90,14 @@ define([
 			return [Dom.clone(node)];
 		}
 		if (Dom.hasClass(node, 'MsoTitle')) {
-			return [rewrap(node, 'h1')];
+			return [Utils.rewrap(node, 'h1')];
 		}
 		if (Dom.hasClass(node, 'MsoSubtitle')) {
-			return [rewrap(node, 'h2')];
+			return [Utils.rewrap(node, 'h2')];
 		}
 		var nodeName = namespacedNodeName(node);
 		if (nodeName) {
-			return [rewrap(node, nodeName)];
+			return [Utils.rewrap(node, nodeName)];
 		}
 		return [Dom.clone(node)];
 	}
@@ -123,28 +108,38 @@ define([
 	 * TODO: use <meta name="Generator" content="WORD|OPENOFFICE|ETC">
 	 *       this is more formally correct
 	 *
-	 * @param  {string}   markup
-	 * @param  {Document} doc
+	 * @param  {string}    markup
+	 * @param  {!Document} doc
 	 * @return {boolean}
 	 */
 	function isMSWordContent(markup, doc) {
-		var element = Html.parse(markup, doc);
+		var element = doc.createElement('div');
+		Dom.move(Html.parse(markup, doc), element);
 		return null !== element.querySelector('[style*="mso-"],[class^="Mso"]');
 	}
 
 	/**
-	 * Transforms markup to normalized HTML.
+	 * Transforms msword markup to normalized HTML.
 	 *
-	 * @param  {string}   markup
-	 * @param  {Document} doc
+	 * @param  {string}    markup
+	 * @param  {!Document} doc
 	 * @return {string}
+	 * @alias msword
+	 * @memberOf transform
 	 */
-	function transform(markup, doc) {
-		var raw = Html.parse(Utils.extract(markup), doc);
-		var fragment = Utils.normalize(raw, clean) || raw;
+	function transform(markup, doc, rules) {
+		if (!rules) {
+			rules = Utils.DEFAULT_RULES;
+		}
+		var nodes = Html.parse(Utils.extract(markup), doc);
+		var raw = doc.createElement('div');
+		Dom.move(nodes, raw);
+		var fragment = Utils.normalize(rules, raw, clean) || raw;
 		fragment = Lists.transform(fragment);
+		fragment = Toc.transform(fragment);
 		fragment = Tables.transform(fragment);
-		return Dom.children(fragment)[0].innerHTML;
+		var children = Dom.children(fragment);
+		return 0 === children.length ? '' : children[0].innerHTML;
 	}
 
 	return {

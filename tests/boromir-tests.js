@@ -53,6 +53,50 @@
 		ok(null == Boromir(node2.domNode()).attr('id'));
 	});
 
+	test('reading classes', function () {
+		var domNode = setupDomNode();
+		domNode.setAttribute('class', 'one two');
+		var node = Boromir(domNode);
+		deepEqual(node.classes(), {'one': true, 'two': true});
+		ok(node.hasClass('one'));
+		ok(node.hasClass('two'));
+	});
+
+	test('add/remove a class', function () {
+		var domNode = setupDomNode();
+		var node = Boromir(domNode);
+		equal(node.attr('class'), null);
+		deepEqual(node.classes(), {});
+
+		node = node.addClass('some-class');
+		ok(node.hasClass('some-class'));
+		equal(node.attr('class'), 'some-class');
+		deepEqual(node.classes(), {'some-class': true})
+
+		node = node.updateDom();
+		equal(domNode.getAttribute('class'), 'some-class');
+
+		node = node.addClass('another-class');
+		node = node.updateDom();
+		ok(domNode.getAttribute('class') === 'some-class another-class'
+		   || domNode.getAttribute('class') === 'another-class some-class');
+
+		ok(node.hasClass('some-class'));
+		ok(node.hasClass('another-class'));
+		ok(node.attr('class') === 'some-class another-class'
+		   || node.attr('class') === 'another-class some-class');
+		deepEqual(node.classes(), {'some-class': true, 'another-class': true});
+
+		node = node.removeClass('some-class');
+		node = node.updateDom();
+		equal(domNode.getAttribute('class'), 'another-class');
+		
+		ok(!node.hasClass('some-class'));
+		ok(node.hasClass('another-class'));
+		equal(node.attr('class'), 'another-class');
+		deepEqual(node.classes(), {'another-class': true});
+	});
+
 	test('set a style', function () {
 		var domNode = setupDomNode();
 		var node = Boromir(domNode);
@@ -97,6 +141,20 @@
 		equal(node.children()[1].attr('id'), 'insert');
 		equal(node.children()[2].type(), Boromir.TEXT);
 		equal(node.children()[2].text(), 'insert');
+	});
+
+	test('move children', function () {
+		var domNode = document.getElementById('test-editable');
+		domNode.innerHTML = 'This is my <b>first</b> paragraph.';
+		var node = Boromir(domNode);
+		var newChildren = node.children().slice(0);
+		newChildren.push(newChildren.shift());
+		node = node.children(newChildren);
+		node = node.updateDom();
+		equal(node.domNode().innerHTML, '<b>first</b> paragraph.This is my ');
+		equal(node.children()[0].name(), 'B');
+		equal(node.children()[1].text(), ' paragraph.');
+		equal(node.children()[2].text(), 'This is my ');
 	});
 
 }(window.aloha));

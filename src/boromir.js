@@ -64,6 +64,7 @@ define([
 	'record',
 	'delayed-map',
 	'dom',
+	'strings',
 	'assert'
 ], function (
 	Fn,
@@ -72,6 +73,7 @@ define([
 	Record,
 	DelayedMap,
 	Dom,
+	Strings,
 	Assert
 ) {
 	'use strict';
@@ -84,7 +86,6 @@ define([
 	var AFFINITY_DOM = 1;
 	var AFFINITY_MODEL = 2;
 	var AFFINITY_DEFAULT = AFFINITY_DOM | AFFINITY_MODEL;
-	var SPECIAL_PRIVATE_VALUE = {};
 	var CHANGED_INIT = 1;
 	var CHANGED_NAME = 2;
 	var CHANGED_TEXT = 4;
@@ -140,6 +141,8 @@ define([
 		nodeT = nodeT.delayT(nodeT.children, childrenFromDomNode, domNode);
 		nodeT = nodeT.setT(delayedAttrsField, delayedAttrs);
 		nodeT = nodeT.setT(delayedStylesField, delayedStyles);
+		var node = nodeT.asPersistent();
+		nodeT = node.asTransient().delayT(classesField, classesFromNodeAttrs, node);
 		return nodeT;
 	}
 
@@ -180,7 +183,7 @@ define([
 		if (domNodeOrProps.nodeType) {
 			nodeT = setPropsFromDomNodeT(nodeT, domNodeOrProps);
 		} else if (!Fn.isNou(domNodeOrProps.text)) {
-			nodeT = setTextPropsT(nodeT, domNodeOrProps)
+			nodeT = setTextPropsT(nodeT, domNodeOrProps);
 		} else if (!Fn.isNou(domNodeOrProps.name)) {
 			nodeT = setElementPropsT(nodeT, domNodeOrProps);
 		} else {
@@ -194,6 +197,7 @@ define([
 		type         : null,
 		name         : null,
 		text         : null,
+		classes      : {},
 		children     : null,
 		affinity     : AFFINITY_DEFAULT
 	}, function (node, domNodeOrProps) {
@@ -207,6 +211,7 @@ define([
 		node = unchangedField.set(node, node);
 		return node;
 	});
+	var classesField       = Boromir.prototype.classes;
 	var unchangedField     = Boromir.addField();
 	var idField            = Boromir.addField();
 	var delayedAttrsField  = Boromir.addField();
@@ -226,9 +231,6 @@ define([
 	}
 
 	function hookUpdateChanged(field, changedMask) {
-		var getChanged = changedField.get;
-		var setChanged = changedField.set
-		var setChangedT = setChanged.setT;
 		return Record.hookSetter(field, function (node) {
 			return updateMask(node, changedMask, changedField.set);
 		} , function (node) {
@@ -238,10 +240,6 @@ define([
 
 	function assertElement(node) {
 		Assert.assert(ELEMENT === node.type.get(node), Assert.EXPECT_ELEMENT);
-	}
-
-	function assertTextNode(node) {
-		Assert.assert(TEXT === node.type.get(node), Assert.EXPECT_TEXT_NODE);
 	}
 
 	function getChangedOrDelayed(changedMapField, delayedField, node, name) {
@@ -259,7 +257,7 @@ define([
 		node = node.asTransient();
 		node = node.setT(changedMapField, changedMap);
 		node = updateMask(node, changedMask, changedField.set.setT);
-		return node.asPersistent()
+		return node.asPersistent();
 	}
 
 	/**
@@ -287,10 +285,18 @@ define([
 		return getChangedOrDelayed(changedAttrsField, delayedAttrsField, node, name);
 	}
 
+	function parseClasses(classStr) {
+		return Maps.fillKeys({}, Strings.words(classStr), true);
+	}
+
 	function setAttr(node, name, value) {
 		assertElement(node);
 		Assert.assert('style' !== name, Assert.STYLE_NOT_AS_ATTR);
-		return setChanged(changedAttrsField, CHANGED_ATTRS, node, name, value);
+		node = setChanged(changedAttrsField, CHANGED_ATTRS, node, name, value);
+		if ('class' === name) {
+			node = updateClassesFromAttr(node);
+		}
+		return node;
 	}
 
 	/**
@@ -402,7 +408,7 @@ define([
 		} else if (TEXT === type) {
 			return createTextNode(node, doc);
 		} else {
-			Assert.notImplemented()
+			Assert.notImplemented();
 		}
 	}
 
@@ -422,6 +428,7 @@ define([
 		child = child.setT(child.domNode, childDomNode);
 		child = child.setT(idField, allocateId());
 		child = updateInUnchanged(child, child.children, [], unchangedField.set.setT);
+		child = child.setT(changedField, changedField.get(child) | CHANGED_CHILDREN);
 		child = child.asPersistent();
 		child = updateDomRec(child, doc, insertIndex);
 		return child;
@@ -459,6 +466,8 @@ define([
 		if (newChildren === oldChildren) {
 			return null;
 		}
+		var oldChild;
+		var newChild;
 		var newIndex = null;
 		var i = 0;
 		var j = 0;
@@ -467,8 +476,8 @@ define([
 		var changedInParent = [];
 		var changed = false;
 		while (i < oldLen && j < newLen) {
-			var oldChild = oldChildren[i];
-			var newChild = newChildren[j];
+			oldChild = oldChildren[i];
+			newChild = newChildren[j];
 			var oldId = idField.get(oldChild);
 			var newId = idField.get(newChild);
 			var change;
@@ -496,12 +505,12 @@ define([
 			changedInParent.push(change);
 		}
 		for (; i < oldLen; i++) {
-			var oldChild = oldChildren[i];
+			oldChild = oldChildren[i];
 			changed = true;
 			changedInParent.push(CHANGE_REMOVE);
 		}
 		for (; j < newLen; j++) {
-			var newChild = newChildren[j];
+			newChild = newChildren[j];
 			changed = true;
 			changedInParent.push(CHANGE_INSERT);
 		}
@@ -517,7 +526,7 @@ define([
 	 * @private
 	 */
 	function updateChildren(node, doc, insertIndex) {
-		var newChildren = node.children.get(node)
+		var newChildren = node.children.get(node);
 		var oldChildren = getInUnchanged(node, node.children);
 		var changedInParent = childrenChangedInParent(oldChildren, newChildren);
 		if (!changedInParent) {
@@ -554,7 +563,7 @@ define([
 					child = insertChild(domNode, childNodes, child, domI, doc, insertIndex);
 					domI += 1;
 				} else if (change & CHANGE_REMOVE) {
-					removeChild(domNode, childNodes, domI)
+					removeChild(domNode, childNodes, domI);
 				} else {
 					if (change & CHANGE_REF) {
 						child = updateDomRec(child, doc, insertIndex);
@@ -612,7 +621,7 @@ define([
 	 * boromir nodes, otherwise the behviour is undefined and may cause
 	 * errors to be thrown. The assumption that the tree wasn't modified
 	 * is necessary so that the DOM can be updated in the most efficient
-	 * manner possible, without perorming any redundant read operations
+	 * manner possible, without peforming any redundant read operations
 	 * on the DOM.
 	 *
 	 * For the reason above, after the DOM has been updated, the boromir
@@ -651,9 +660,47 @@ define([
 		} else if (TEXT === node.type()) {
 			domNode = createTextNode(node, doc);
 		} else {
-			Asssert.notImplemented();
+			Assert.notImplemented();
 		}
 		return domNode;
+	}
+
+	function classesFromNodeAttrs(node) {
+		var cls = getAttr(node, 'class');
+		return Fn.isNou(cls) ? {} : parseClasses(cls);
+	}
+
+	function updateClassesFromAttr(node) {
+		return node.set(classesField, classesFromNodeAttrs(node));
+	}
+
+	function updateAttrFromClasses(node) {
+		var classStr = Maps.keys(node.get(node.classes)).join(' ');
+		return setChanged(changedAttrsField, CHANGED_ATTRS, node, 'class', classStr);
+	}
+
+	function hasClass(node, cls) {
+		return node.get(node.classes)[cls];
+	}
+
+	function addClass(node, cls) {
+		var classMap = node.get(node.classes);
+		if (classMap[cls]) {
+			return node;
+		}
+		classMap = Maps.cloneSet(classMap, cls, true);
+		node = node.set(node.classes, classMap);
+		return node;
+	}
+
+	function removeClass(node, cls) {
+		var classMap = node.get(node.classes);
+		if (!classMap[cls]) {
+			return node;
+		}
+		classMap = Maps.cloneDelete(classMap, cls);
+		node = node.set(node.classes, classMap);
+		return node;
 	}
 
 	var hookedName     = hookUpdateChanged(Boromir.prototype.name, CHANGED_NAME);
@@ -671,8 +718,23 @@ define([
 		style        : Accessor.asMethod(Accessor(getStyle, setStyle)),
 		updateDom    : Fn.asMethod(updateDom),
 		asDom        : Fn.asMethod(asDom),
-		create       : Boromir
+		create       : Boromir,
+		hasClass     : Fn.asMethod(hasClass),
+		addClass     : Fn.asMethod(addClass),
+		removeClass  : Fn.asMethod(removeClass)
 	});
+
+	Boromir.prototype.attrs = Accessor.asMethod(
+		Record.hookSetterRecompute(Boromir.prototype.attrs,
+		                           classesField,
+		                           classesFromNodeAttrs,
+		                           classesFromNodeAttrs)
+	);
+	Boromir.prototype.classes = Accessor.asMethod(
+		Record.hookSetter(classesField,
+		                  updateAttrFromClasses,
+		                  updateAttrFromClasses)
+	);
 
 	Boromir.CHANGE_INSERT    = CHANGE_INSERT;
 	Boromir.CHANGE_REMOVE    = CHANGE_REMOVE;

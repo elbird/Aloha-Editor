@@ -4,8 +4,9 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor. 
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php 
+ * @namespace fn
  */
-define([], function Functions() {
+define([], function () {
 	'use strict';
 
 	/**
@@ -14,6 +15,7 @@ define([], function Functions() {
 	 *
 	 * @param  {*} arg
 	 * @return {*} The given argument `arg`.
+	 * @memberOf fn
 	 */
 	function identity(arg) {
 		return arg;
@@ -21,6 +23,7 @@ define([], function Functions() {
 
 	/**
 	 * Does nothing.
+	 * @memberOf fn
 	 */
 	function noop() {
 	}
@@ -29,6 +32,7 @@ define([], function Functions() {
 	 * Always returns `true`.
 	 *
 	 * @return {boolean}
+	 * @memberOf fn
 	 */
 	function returnTrue() {
 		return true;
@@ -38,6 +42,7 @@ define([], function Functions() {
 	 * Always returns `false`.
 	 *
 	 * @return {boolean}
+	 * @memberOf fn
 	 */
 	function returnFalse() {
 		return false;
@@ -45,6 +50,7 @@ define([], function Functions() {
 
 	/**
 	 * Is null or undefined.
+	 * @memberOf fn
 	 */
 	function isNou(obj) {
 		return null == obj;
@@ -55,8 +61,9 @@ define([], function Functions() {
 	 * The complement function will return the opposite boolean result when
 	 * called with the same arguments as the given `fn` function.
 	 *
-	 * @param  {function:boolean} fn
-	 * @return {function:boolean}
+	 * @param  {function():boolean} fn
+	 * @return {function():boolean}
+	 * @memberOf fn
 	 */
 	function complement(fn) {
 		return function () {
@@ -82,6 +89,7 @@ define([], function Functions() {
 	 * @param  {function} fn
 	 * @param  {Object} thisArg
 	 * @return {function}
+	 * @memberOf fn
 	 */
 	function partial(fn) {
 		var args = Array.prototype.slice.call(arguments, 1);
@@ -93,30 +101,6 @@ define([], function Functions() {
 	}
 
 	/**
-	 * Creates a bound variable and returns the closure which can be use to get
-	 * and set the value of it as a free variable.
-	 *
-	 * This construct can be used as a convenient way to simulate
-	 * generic out parameters in JavaScript.
-	 *
-	 * Calling the closure with an argument changes the value of the enclosed
-	 * variable.  Calling the closure without any arguments will return the
-	 * value of the enclosed variable.
-	 *
-	 * @param {*} value The initial value that the enclosed variable should hold.
-	 * @return {function(*):*}
-	 */
-	function outparameter(value) {
-		var variable = value;
-		return function OutParameter() {
-			if (arguments.length) {
-				variable = arguments[0];
-			}
-			return variable;
-		};
-	}
-
-	/**
 	 * Compare the given arguments using the strict equals operator.
 	 *
 	 * Useful to pass as an arguments to other functions.
@@ -124,6 +108,7 @@ define([], function Functions() {
 	 * @param a {*}
 	 * @param b {*}
 	 * @return  {boolean}
+	 * @memberOf fn
 	 */
 	function strictEquals(a, b) {
 		return a === b;
@@ -134,8 +119,9 @@ define([], function Functions() {
 	 *
 	 * comp(a, b, c)(value) === a(b(c(value)))
 	 *
-	 * @param  {function(*):*...}
+	 * @param  {function(...number):...number}
 	 * @return {*}
+	 * @memberOf fn
 	 */
 	function comp() {
 		var fns = arguments;
@@ -153,13 +139,20 @@ define([], function Functions() {
 		};
 	}
 
+	/**
+	 * Composes a predicate function made up of a chain of the given predicate
+	 * arguments.
+	 *
+	 * @param  {function():...boolean}
+	 * @return {function():boolean}
+	 * @memberOf fn
+	 */
 	function and() {
-		var fns = arguments;
-		var len = fns.length;
-
+		var predicates = arguments;
+		var len = predicates.length;
 		return function () {
 			for (var i = 0; i < len; i++) {
-				if (!(fns[i].apply(this, arguments))) {
+				if (!predicates[i].apply(this, arguments)) {
 					return false;
 				}
 			}
@@ -168,7 +161,28 @@ define([], function Functions() {
 	}
 
 	/**
+	 * Like and() but for boolean OR.
+	 *
+	 * @param  {function(): ...boolean}
+	 * @return {function(): boolean}
+	 * @memberOf fn
+	 */
+	function or() {
+		var predicates = arguments;
+		var len = predicates.length;
+		return function () {
+			for (var i = 0; i < len; i++) {
+				if (predicates[i].apply(this, arguments)) {
+					return true;
+				}
+			}
+			return false;
+		};
+	}
+
+	/**
 	 * Returns a function that constantly returns the given value.
+	 * @memberOf fn
 	 */
 	function constantly(value) {
 		return function () {
@@ -178,6 +192,7 @@ define([], function Functions() {
 
 	/**
 	 * Returns true if the given value is a function.
+	 * @memberOf fn
 	 */
 	function is(obj) {
 		return 'function' === typeof obj;
@@ -194,6 +209,7 @@ define([], function Functions() {
 	 * and may be either 0, no matter how many arguments the function
 	 * expects, or if not 0, must be the actual number of arguments the
 	 * function expects.
+	 * @memberOf fn
 	 */
 	function asMethod(fn) {
 		var len = fn.length;
@@ -221,6 +237,7 @@ define([], function Functions() {
 	 *
 	 * @param Type {!*}
 	 * @param fnByName {Object.<string,function>}
+	 * @memberOf fn
 	 */
 	function extendType(Type, fnByName) {
 		for (var name in fnByName) {
@@ -237,14 +254,14 @@ define([], function Functions() {
 		returnFalse  : returnFalse,
 		complement   : complement,
 		partial      : partial,
-		outparameter : outparameter,
 		strictEquals : strictEquals,
 		comp         : comp,
 		and          : and,
+		or           : or,
 		constantly   : constantly,
-		is: is,
-		isNou: isNou,
-		asMethod: asMethod,
-		extendType: extendType
+		is           : is,
+		isNou        : isNou,
+		asMethod     : asMethod,
+		extendType   : extendType
 	};
 });

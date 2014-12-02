@@ -1,11 +1,13 @@
-(function (aloha) {
+(function (aloha, module, test, equal) {
 	'use strict';
+
+	var editable = aloha.editables.create(aloha.editor, document.createElement('div'));
 
 	module('transform');
 
 	function t(input, expected) {
 		equal(
-			aloha.transform.html(input, document),
+			aloha.transform.html(input, document, editable.settings),
 			expected,
 			input + ' => ' + expected
 		);
@@ -69,7 +71,7 @@
 		// Normalize illegal dom structure
 		t(
 			'<h1>One</h1> <strong><div><b><div><span>and</span> a half</div></b></div></strong><h2>Two</h2>Three',
-			'<h1>One</h1><p>and a half</p><h2>Two</h2><p>Three</p>'
+			'<h1>One</h1><p>and a half</p><h2>Two</h2>Three'
 		);
 
 		return;
@@ -188,4 +190,4 @@
 		);
 	});
 
-})(window.aloha);
+})(window.aloha, window.module, window.test, window.equal);

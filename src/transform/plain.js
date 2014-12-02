@@ -5,7 +5,7 @@
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
  */
-define([], function() {
+define([], function () {
 	'use strict';
 
 	/**
@@ -13,6 +13,8 @@ define([], function() {
 	 *
 	 * @param  {string} text
 	 * @return {string}
+	 * @alias plain
+	 * @memberOf transform
 	 */
 	function transform(text) {
 		var markup = text.split(/\n/).reduce(function (paragraphs, snippet) {

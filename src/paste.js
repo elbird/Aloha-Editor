@@ -4,37 +4,40 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ * @namespace paste
  */
 define([
-	'editing',
+	'dom',
+	'html',
+	'undo',
+	'paths',
 	'arrays',
 	'events',
-	'boundaries',
-	'dom',
+	'boromir',
 	'content',
-	'functions',
-	'html',
+	'editing',
+	'zippers',
 	'mutation',
-	'ranges',
-	'undo',
-	'transform/ms-word',
+	'boundaries',
+	'functions',
 	'transform',
-	'selections'
+	'transform/ms-word'
 ], function (
-	Editing,
+	Dom,
+	Html,
+	Undo,
+	Paths,
 	Arrays,
 	Events,
-	Boundaries,
-	Dom,
+	Boromir,
 	Content,
-	Fn,
-	Html,
+	Editing,
+	Zip,
 	Mutation,
-    Ranges,
-    Undo,
-    WordTransform,
-    Transform,
-	Selections
+	Boundaries,
+	Fn,
+	Transform,
+	WordTransform
 ) {
 	'use strict';
 
@@ -50,21 +53,10 @@ define([
 	};
 
 	/**
-	 * Checks if the given event is a Paste Event.
-	 *
-	 * @private
-	 * @param  {Event} event
-	 * @return {boolean}
-	 */
-	function isPasteEvent(event) {
-		return event.type === 'paste' || event.clipboardData !== undefined;
-	}
-
-	/**
 	 * Checks the content type of `event`.
 	 *
 	 * @private
-	 * @param  {Event}  event
+	 * @param  {!Event} event
 	 * @param  {string} type
 	 * @return {boolean}
 	 */
@@ -76,7 +68,7 @@ define([
 	 * Gets content of the paste data that matches the given mime type.
 	 *
 	 * @private
-	 * @param  {Event}  event
+	 * @param  {!Event} event
 	 * @param  {string} type
 	 * @return {string}
 	 */
@@ -84,37 +76,12 @@ define([
 		return event.clipboardData.getData(type);
 	}
 
-	function split(boundary, until) {
-		var range = Ranges.fromBoundaries(boundary, boundary);
-		Editing.split(range);
-		return Boundaries.fromRangeStart(range);
-	}
-
-	function delete_(boundaries) {
-		var range = Ranges.fromBoundaries(boundaries[0], boundaries[1]);
-		Editing.delete(range, {overrides: []});
-		return Boundaries.fromRangeStart(range);
-	}
-
-	/**
-	 * Checks whether the inner node is allowed to be nested as the immediate
-	 * child of `outer`.
-	 *
-	 * @private
-	 * @param  {Node} outer
-	 * @param  {Node} inner
-	 * @return {boolean}
-	 */
-	function allowsNesting(outer, inner) {
-		return Content.allowsNesting(outer.nodeName, inner.nodeName);
-	}
-
 	/**
 	 * Moves the given node before the given boundary.
 	 *
 	 * @private
-	 * @param  {Boundary} boundary
-	 * @param  {Node}     node
+	 * @param  {!Boundary} boundary
+	 * @param  {!Node}     node
 	 * @return {Bounbary}
 	 */
 	function moveBeforeBoundary(boundary, node) {
@@ -125,63 +92,79 @@ define([
 	 * Pastes the markup at the given boundary range.
 	 *
 	 * @private
-	 * @param  {Array.<Boundary>} boundaries
-	 * @param  {string}           markup
-	 * @return {Boundary} Boundary position after the inserted content
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
+	 * @param  {string}    markup
+	 * @return {Array.<Boundary>}
 	 */
-	function insert(boundaries, markup) {
-		var doc = Boundaries.container(boundaries[0]).ownerDocument;
-		var boundary = delete_(boundaries);
-		var element = Html.parse(markup, doc);
-		var children = Dom.children(element);
+	function insert(start, end, markup) {
+		var doc = Boundaries.document(start);
+		var boundaries = Editing.remove(start, end);
+		var nodes = Html.parse(markup, doc);
 
-		if (0 === children.length) {
-			return boundary;
+		if (0 === nodes.length) {
+			return boundaries;
 		}
 
-		// Because we can only detect "void type" (non-content editable nodes)
-		// if is contained within a editing host
-		Dom.setAttr(element, 'contentEditable', true);
+		// Because we are only able to detect "void type" (non-content editable
+		// nodes) when they are contained within a editing host
+		var container = doc.createElement('div');
+		Dom.setAttr(container, 'contentEditable', true);
+		Dom.move(nodes, container);
 
-		var first = children[0];
+		var first = nodes[0];
 
 		// Because (unlike plain-text), pasted html will contain an unintended
 		// linebreak caused by the wrapper inwhich the pasted content is placed
-		// (P in most cases).  We therefore unfold this wrapper whenever is
-		// valid to do so (ie: we cannot unfold 'ul', 'table', etc)
+		// (P in most cases). We therefore unfold this wrapper whenever is valid
+		// to do so (ie: we cannot unfold grouping elements like 'ul', 'table',
+		// etc)
 		if (!Dom.isTextNode(first) && !Html.isVoidType(first) && !Html.isGroupContainer(first)) {
-			children = Dom.children(first).concat(children.slice(1));
+			nodes = Dom.children(first).concat(nodes.slice(1));
 		}
 
-		if (0 === children.length) {
-			return boundary;
+		if (0 === nodes.length) {
+			return boundaries;
 		}
 
-		children.forEach(function (node) {
-			if (Html.hasLinebreakingStyle(node)) {
-				boundary = split(boundary, Fn.partial(allowsNesting, node));
-			}
-			boundary = Mutation.insertNodeAtBoundary(node, boundary, true);
+		var editable = Dom.editingHost(Boundaries.container(boundaries[0]));
+		var zip = Zip.zipper(editable, {
+			start : boundaries[0],
+			end   : boundaries[1]
 		});
+		var loc = Zip.go(zip.loc, zip.markers.start);
+		nodes.forEach(function (child) {
+			loc = Zip.split(loc, function (loc) {
+				return Content.allowsNesting(Zip.after(loc).name(), child.nodeName);
+			});
+			loc = Zip.insert(loc, Boromir(child));
+		});
+		var markers = Zip.update(loc);
 
-		var last = Arrays.last(children);
+		return [markers.start, markers.end];
+
+		var result = MutationTrees.update(tree);
+		boundaries = result[1].map(Fn.partial(Paths.toBoundary, result[0].domNode()));
+
+		var last = Arrays.last(nodes);
+		var next = Boundaries.nodeAfter(boundaries[1]);
 
 		// Because we want to remove the unintentional line added at the end of
 		// the pasted content
-		if ('P' === last.nodeName || 'DIV' === last.nodeName) {
-			var next = Boundaries.nextNode(boundary);
+		if (next && ('P' === last.nodeName || 'DIV' === last.nodeName)) {
 			if (Html.hasInlineStyle(next)) {
+				boundaries[1] = Boundaries.fromEndOfNode(last);
 				// Move the next inline nodes into the last element
-				Dom.move(Dom.nextSiblings(next, Html.hasLinebreakingStyle), last);
+				Dom.move(Dom.nodeAndNextSiblings(next, Html.hasLinebreakingStyle), last);
 			} else if (!Html.isVoidType(next) && !Html.isGroupContainer(next)) {
 				// Move the children of the last element into the beginning of
 				// the next block element
-				boundary = Dom.children(last).reduce(moveBeforeBoundary, Boundaries.create(next, 0));
+				boundaries[1] = Dom.children(last).reduce(moveBeforeBoundary, Boundaries.create(next, 0));
 				Dom.remove(last);
 			}
 		}
 
-		return boundary;
+		return boundaries;
 	}
 
 	/**
@@ -192,12 +175,12 @@ define([
 	 * @param  {Document} doc
 	 * @return {string}
 	 */
-	function extractContent(event, doc) {
+	function extractContent(event, doc, rules) {
 		if (holds(event, Mime.html)) {
 			var content = getData(event, Mime.html);
 			return WordTransform.isMSWordContent(content, doc)
-			     ? Transform.html(Transform.msword(content, doc), doc)
-			     : Transform.html(content, doc);
+			     ? Transform.html(Transform.msword(content, doc), doc, rules)
+			     : Transform.html(content, doc, rules);
 		}
 		if (holds(event, Mime.plain)) {
 			return Transform.plain(getData(event, Mime.plain), doc);
@@ -208,36 +191,40 @@ define([
 	/**
 	 * Handles and processes paste events.
 	 *
-	 * @param  {AlohaEvent} alohaEvent
+	 * Updates:
+	 * 		range
+	 * 		nativeEvent
+	 *
+	 * @param  {AlohaEvent} event
 	 * @return {AlohaEvent}
+	 * @memberOf paste
 	 */
-	function handle(alohaEvent) {
-		var event = alohaEvent.nativeEvent;
-		if (event && isPasteEvent(event)) {
-			Events.suppress(event);
-			var boundary = Boundaries.get();
-			if (!boundary) {
-				return alohaEvent;
-			}
-			var content = extractContent(
-				event,
-				alohaEvent.editable.elem.ownerDocument
-			);
-			if (!content) {
-				return alohaEvent;
-			}
-			Undo.capture(alohaEvent.editable.undoContext, {
-				meta: {type: 'paste'}
-			}, function () {
-				boundary = insert(boundary, content);
-				Selections.scrollTo(boundary);
-				alohaEvent.range = Ranges.fromBoundaries(boundary, boundary);
-			});
+	function handlePaste(event) {
+		if ('paste' !== event.type || 'undefined' === typeof event.nativeEvent.clipboardData) {
+			return event;
 		}
-		return alohaEvent;
+		Events.suppress(event.nativeEvent);
+		var content = extractContent(
+			event.nativeEvent,
+			event.nativeEvent.target.ownerDocument,
+			event.editable.settings
+		);
+		if (!content) {
+			return event;
+		}
+		Undo.capture(event.editable.undoContext, {
+			meta: {type: 'paste'}
+		}, function () {
+			event.selection.boundaries = insert(
+				event.selection.boundaries[0],
+				event.selection.boundaries[1],
+				content
+			);
+		});
+		return event;
 	}
 
 	return {
-		handle: handle
+		handlePaste: handlePaste
 	};
 });

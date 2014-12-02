@@ -5,7 +5,7 @@
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
  */
-define([], function Predicates() {
+define([], function () {
 	'use strict';
 
 	/**
@@ -82,8 +82,12 @@ define([], function Predicates() {
 	/**
 	 * Elements which don't constitue a word boundaries limit.
 	 *
+	 * @see
+	 * http://www.w3.org/TR/html5/text-level-semantics.html
+	 * https://developer.mozilla.org/en/docs/Web/Guide/HTML/HTML5/HTML5_element_list#Text-level_semantics
+	 *
 	 * @private
-	 * @type {object.<string, true>}
+	 * @type {Object.<string, true>}
 	 */
 	var TEXT_LEVEL_SEMANTIC_ELEMENTS = {
 		'A'      : true,
@@ -120,7 +124,6 @@ define([], function Predicates() {
 	/**
 	 * Tags representing list container elements.
 	 *
-	 * @private
 	 * @type {Object.<string, boolean>}
 	 */
 	var LIST_CONTAINERS = {
@@ -148,7 +151,7 @@ define([], function Predicates() {
 	 *
 	 * @private
 	 * @see   GROUPED_CONTAINERS
-	 * @param {<string, boolean>}
+	 * @param {Object.<string, boolean>}
 	 */
 	var GROUP_CONTAINERS = {
 		'FIELDSET' : true,
@@ -173,7 +176,7 @@ define([], function Predicates() {
 	 *
 	 * @private
 	 * @see   GROUP_CONTAINERS
-	 * @param {<string, Array.<string>}
+	 * @param {Object.<string, Array.<string>>}
 	 */
 	var GROUPED_ELEMENTS = {
 		'LI'    : ['OL', 'UL', 'DL'],
@@ -193,6 +196,7 @@ define([], function Predicates() {
 	 * @see    GROUP_CONTAINERS
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isGroupContainer(node) {
 		return GROUP_CONTAINERS[node.nodeName];
@@ -207,6 +211,7 @@ define([], function Predicates() {
 	 * @see    GROUPED_CONTAINER
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isGroupedElement(node) {
 		return !!GROUPED_ELEMENTS[node.nodeName];
@@ -217,6 +222,7 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isListItem(node) {
 		return !!LIST_ITEMS[node.nodeName];
@@ -227,6 +233,7 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isListContainer(node) {
 		return !!LIST_CONTAINERS[node.nodeName];
@@ -237,6 +244,7 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isTableContainer(node) {
 		return node.nodeName === 'TABLE';
@@ -247,6 +255,7 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isVoidNode(node) {
 		return !!VOID_ELEMENTS[node.nodeName];
@@ -261,6 +270,7 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isBlockNode(node) {
 		return !!BLOCK_LEVEL_ELEMENTS[node.nodeName];
@@ -275,6 +285,7 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isInlineNode(node) {
 		return !isBlockNode(node);
@@ -285,20 +296,48 @@ define([], function Predicates() {
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isTextLevelSemanticNode(node) {
 		return !!TEXT_LEVEL_SEMANTIC_ELEMENTS[node.nodeName];
 	}
 
+	/**
+	 * Heading tag names.
+	 *
+	 * @private
+	 * @type {Object.<string, boolean>}
+	 */
+	var HEADINGS = {
+		'H1' : true,
+		'H2' : true,
+		'H3' : true,
+		'H4' : true,
+		'H5' : true,
+		'H6' : true
+	};
+
+	/**
+	 * Whether the given node is a heading element.
+	 *
+	 * @param  {Node} node
+	 * @return {boolean}
+	 * @memberOf html
+	 */
+	function isHeading(node) {
+		return !!HEADINGS[node.nodeName];
+	}
+
 	return {
-		isVoidNode               : isVoidNode,
-		isBlockNode              : isBlockNode,
-		isInlineNode             : isInlineNode,
-		isTextLevelSemanticNode  : isTextLevelSemanticNode,
-		isListItem               : isListItem,
-		isListContainer          : isListContainer,
-		isTableContainer         : isTableContainer,
-		isGroupContainer         : isGroupContainer,
-		isGroupedElement         : isGroupedElement
+		isBlockNode             : isBlockNode,
+		isGroupContainer        : isGroupContainer,
+		isGroupedElement        : isGroupedElement,
+		isHeading               : isHeading,
+		isInlineNode            : isInlineNode,
+		isListContainer         : isListContainer,
+		isListItem              : isListItem,
+		isTableContainer        : isTableContainer,
+		isTextLevelSemanticNode : isTextLevelSemanticNode,
+		isVoidNode              : isVoidNode
 	};
 });

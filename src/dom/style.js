@@ -5,15 +5,7 @@
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
  */
-define([
-	'dom/nodes',
-	'dom/attrs',
-	'strings'
-], function DomStyles(
-	Nodes,
-	Attrs,
-	Strings
-) {
+define(['strings'], function (Strings) {
 	'use strict';
 
 	/**
@@ -22,12 +14,13 @@ define([
 	 * @param  {Element} elem
 	 * @param  {string}  name  Style property
 	 * @return {string}  value Style property value
+	 * @alias setStyle
+	 * @memberOf dom
 	 */
 	function set(elem, name, value) {
 		name = Strings.dashesToCamelCase(name);
 		var styles = elem.style;
 		if (name in styles) {
-			// @ignore jslint warning
 			styles[name] = value;
 		}
 	}
@@ -39,6 +32,8 @@ define([
 	 * @param  {Element} elem
 	 * @param  {string}  name Style property
 	 * @return {?string} Style value or null if none is found
+	 * @alias getStyle
+	 * @memberOf dom
 	 */
 	function get(elem, name) {
 		// Because IE7 needs dashesToCamelCase().
@@ -56,6 +51,7 @@ define([
 	 * @param  {Element}                 elem
 	 * @param  {Array.<string>}          names
 	 * @return {Object.<string, string>}
+	 * @memberOf dom
 	 */
 	function getComputedStyles(elem, names) {
 		var props = {};
@@ -81,6 +77,7 @@ define([
 	 * @param  {Element} elem
 	 * @param  {string}  name Style property name.
 	 * @return {?string} Computed style, or `null` if no such style is set
+	 * @memberOf dom
 	 */
 	function getComputedStyle(elem, name) {
 		var doc = elem.ownerDocument;
@@ -106,6 +103,8 @@ define([
 	 *
 	 * @param {Element} elem
 	 * @param {string}  styleName
+	 * @alias removeStyle
+	 * @memberOf dom
 	 */
 	function remove(elem, styleName) {
 		elem.style.removeProperty(styleName);

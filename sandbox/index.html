@@ -3,41 +3,59 @@
 	<head>
 		<title>Aloha Editor</title>
 		<meta charset="UTF-8">
-		<!--<link href='http://fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>-->
-		<link rel="stylesheet" type="text/css" href="../src/aloha.css">
+
+		<link href='http://fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+		<!-- Image from: https://www.flickr.com/photos/lovingjazz/6737863743 -->
 		<style>
+			html {
+				height: 100%;
+				background: #fefdfd;
+			}
 			body {
+				margin: 0;
+				padding: 5% 20%;
+				color: #565452;
+				line-height: 1.6em;
+				min-height: 100%;
+				box-shadow: 0 0 100px rgba(0,0,0,0.2) inset;
 				font-family: 'Open Sans', sans-serif;
 				font-size: 16px;
+				-webkit-font-smoothing: antialiased;
+				   -moz-font-smoothing: antialiased;
+				       -font-smoothing: antialiased;
 			}
+			::selection {
+				background: #4285f4;
+				color: #fff;
+			}
+			::-moz-selection {
+				background: #4285f4;
+				color: #fff;
+			}
+			p { margin: 0 0 0.5em; }
+			.aloha-editable {
+				padding: 1em;
+				border: 1px solid #eee;
+				box-shadow: 2px 2px 100px rgba(0,0,0,0.1);
+			}
+			.aloha-editable>:first-child { margin-top: 0; }
+			.aloha-editable>:last-child { margin-bottom: 0; }
 			.aloha-block {
 				width: 100px;
 				height: 100px;
 				padding: 10px;
-				background: #999;
 				color: #fff;
 				text-align: center;
 				display: table-cell;
 				vertical-align: middle;
-				cursor: -webkit-grab;
-				cursor: -moz-grab;
-				box-shadow: 2px 2px 10px rgba(0,0,0,0.2) inset;
+				background-image: -webkit-linear-gradient(50deg, #8aeae2 0%, #dcc23a 30%, #ee5577 100%);
+				background-image: -moz-linear-gradient(50deg, #8aeae2 0%, #dcc23a 30%, #ee5577 100%);
 			}
-			.aloha-block:hover { background: #df215a; }
-			img.aloha-block {
-				width: auto;
-				height: auto;
-				display: block;
-				padding: 0;
-			}
-			ol {
-			  counter-reset: counter;
-			  list-style-type: none;
-			}
-			ol>li:before {
-				counter-increment: counter;
-				content: counters(counter, ".") ") ";
-				margin-left: -1em;
+			code {
+				border: 1px solid #ddd;
+				border-radius: 0.2em;
+				background: whitesmoke;
+				padding: 0.2em;
 			}
 			 #mobile-textarea {
         z-index: -999;
@@ -45,43 +63,27 @@
         display: none;
     }
 		</style>
-
-		<!-- style id="metaview">
-			ul,ol,li,td,th,p,b,i,u,div,h1,h2,h3,h4,h5,h6 {
-				padding: 2px 4px;
-				margin: 2px;
-				border: 1px solid rgba(0,0,0,0.2);
-			}
-			p { border-color: rgba(200,0,0,0.5); }
-			span { border-color: rgba(200,200,0,0.5); }
-			b    { border-color: rgba(0,200,0,0.5) }
-			u    { border-color: rgba(0,0,200,0.5) }
-			i    { border-color: rgba(0,200,200,0.5) }
-			h1,h2,h3,h4,h5,h6 { border-color: gray }
-			table {
-				border-collapse: collapse;
-				border-spacing: 0px;
-			}
-			.aloha-editable {
-				margin: 5px;
-				background: white;
-				min-height: 20px;
-			}
-			font {
-				background: red;
-			}
-		</style -->
 	</head>
 	<body>
-<textarea id="mobile-textarea"> </textarea>
+
+		<div class="aloha-editable">starting<i>foobar</i><p
+			><span>one</span> <u><b>two</b> <i>three</i></u></p> <h6
+			>four</h6
+		></div>
+
+		<br/>
+
+		<input value="Not an Aloha Editor element" />
+
+		<br/><br/>
+
 		<div class="aloha-editable">
 			<h1>Aloha Editor</h1>
 			<p>
 				<img draggable="true"
-				     class="aloha-block"
 				     src="demo.jpg"
-					 alt=""
-					 style="float:left; margin: 0 20px 20px 0" />
+				     alt="Some Rights Reserved. Andrea O, Connell"
+				     style="float:left; width: 300px; margin: 0 20px 20px 0" />
 				Lorem    ipsum &nbsp;dolor sit amet, <b>consec<i>tet</i>ur</b> adipiscin
 				elit. Donec a diam lectus. Sed sit amet ipsum mauris.  Maecen
 				congue ligula ac quam viverra nec consectetur ante hendrerit
@@ -103,6 +105,7 @@
 						<li>five</li>
 						<li class="bold"><u><i>six</i></u></li>
 					</ol>
+					<p>seven</p>
 				</li>
 			</ul>
 			<p>
@@ -111,24 +114,40 @@
 				Nam tincidunt congue enim, u porta lorem lacinia consectetur.
 				Donec ut libero sed arc vehicula ultricies a non tortor
 			</p>
+			<p>
+				Donec ut libero sed arc vehicula ultricies a non tortor
+			</p>
+			<ul>
+				<li>one</li>
+				<li>two</li>
+				<li>three</li>
+			</ul>
+			<p>one<br><br><br>two<br>three</p>
 		</div>
 		<script src="../src/require-pronto.js"></script>
 		<script src="../src/require-pronto.dev.js"></script>
+		<script src="../build/aloha.min.js"></script>
 		<script>
 			(function () {
 				'use strict';
 				function setVersion (version) {
 					var h1 = document.querySelector('h1');
 					if (h1) {
-						h1.innerHTML = h1.innerHTML + ': <span style="color:#df215a">' + version + '</span>';
+						h1.innerHTML = h1.innerHTML + ': <span style="color:#df215a">' + version + '</' + 'span>';
 					}
 				}
 				function main(aloha) {
-					[].forEach.call(document.querySelectorAll('.aloha-editable'), aloha);
+					aloha.dom.query('.aloha-editable', document).map(aloha).forEach(function (editable) {
+						aloha.metaview.toggle(editable.elem, {
+							tagname : true,
+							outline : true,
+							padding : true
+						});
+					});
 				}
 				if ('undefined' === typeof aloha) {
 					setVersion('src');
-					require(['../src/aloha'], main);
+					require('../src/aloha', main);
 				} else {
 					setVersion('build');
 					main(aloha);

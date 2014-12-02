@@ -1,14 +1,23 @@
-(function (aloha) {
+(function (aloha, require, module, test, equal, deepEqual) {
 	'use strict';
 
 	var Dom = aloha.dom;
-	var Mutation = aloha.mutation;
+	var Boundaries = aloha.boundaries;
+	var Cursors; require('../src/cursors', function (Module) { Cursors = Module; });
+	var Mutation; require('../src/mutation', function (Module) { Mutation = Module; });
+
+	function createRange(sc, so, ec, eo) {
+		return Boundaries.range(
+			Boundaries.raw(sc, so),
+			Boundaries.raw(ec, eo)
+		);
+	}
 
 	module('dom');
 
 	test('splitTextNode', function () {
 		var node = $('<div>foo<b>bar</b></div>')[0];
-		var range = aloha.ranges.create(
+		var range = createRange(
 			node.firstChild,
 			1,
 			node.lastChild.lastChild,
@@ -23,7 +32,7 @@
 
 	test('splitBoundary', function () {
 		var node = $('<div>foo<b>bar</b></div>')[0];
-		var range = aloha.ranges.create(
+		var range = createRange(
 			node.firstChild,
 			2,
 			node.lastChild.lastChild,
@@ -39,7 +48,7 @@
 	test('joinTextNodeAdjustRange', function () {
 		var node = $('<div>foo<b>bar</b></div>')[0];
 		Mutation.splitTextNode(node.firstChild, 2);
-		var range = aloha.ranges.create(
+		var range = createRange(
 			node.childNodes[1],
 			0,
 			node.lastChild.lastChild,
@@ -55,8 +64,8 @@
 	test('removeShallowPreservingBoundariesCursors', function () {
 		var node = $('<div><span><b>foo</b></span></div>')[0];
 		var points = [
-			aloha.cursors.cursorFromBoundaryPoint(node, 0),
-			aloha.cursors.cursorFromBoundaryPoint(node.firstChild, 1)
+			Cursors.cursorFromBoundaryPoint(node, 0),
+			Cursors.cursorFromBoundaryPoint(node.firstChild, 1)
 		];
 		Mutation.removeShallowPreservingCursors(node.firstChild, points);
 		equal(node.outerHTML, '<div><b>foo</b></div>');
@@ -68,7 +77,7 @@
 
 	test('removePreservingRange', function () {
 		var node = $('<div><span>foo<b>bar</b></span></div>')[0];
-		var range = aloha.ranges.create(node, 0, node.firstChild.lastChild, 1);
+		var range = createRange(node, 0, node.firstChild.lastChild, 1);
 
 		Mutation.removePreservingRange(node.firstChild.lastChild, range);
 		equal(node.outerHTML, '<div><span>foo</span></div>');
@@ -85,4 +94,4 @@
 		equal(range.endOffset, 0);
 	});
 
-}(window.aloha));
+}(window.aloha, window.require, window.module, window.test, window.equal, window.deepEqual));

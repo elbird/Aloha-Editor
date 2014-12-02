@@ -9,12 +9,14 @@ define([
 	'html/styles',
 	'html/predicates',
 	'dom',
+	'arrays',
 	'cursors',
 	'strings'
-], function HtmlElements(
+], function (
 	Styles,
 	Predicates,
 	Dom,
+	Arrays,
 	Cursors,
 	Strings
 ) {
@@ -29,6 +31,7 @@ define([
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isVoidType(node) {
 		return Predicates.isVoidNode(node) || !Dom.isEditableNode(node);
@@ -205,6 +208,7 @@ define([
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isUnrendered(node) {
 		if (!Predicates.isVoidNode(node)
@@ -267,23 +271,53 @@ define([
 	 *
 	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf html
 	 */
 	function isRendered(node) {
 		return !isUnrendered(node);
 	}
 
 	/**
-	 * Parses the given markup string into a DOM tree inside of a detached div
-	 * element.
+	 * Parses the given markup string and returns an array of detached top-level
+	 * elements. Event handler attributes will not trigger immediately to prevent
+	 * XSS, so aloha.editor.parse('<img src="" onerror="alert(1)">', document);
+	 * will NOT generate an alert box. See https://github.com/alohaeditor/Aloha-Editor/issues/1270
+	 * for details.
 	 *
 	 * @param  {string}   html
 	 * @param  {Document} doc
-	 * @return {Element}
+	 * @return {Array.<Node>}
+	 * @memberOf html
 	 */
 	function parse(html, doc) {
-		var div = doc.createElement('div');
-		div.innerHTML = html;
-		return div;
+		var context = (doc.implementation && doc.implementation.createHTMLDocument)
+			? doc.implementation.createHTMLDocument()
+			: doc;
+		var parser = context.createElement('DIV');
+		parser.innerHTML = html;
+		var nodes = Arrays.coerce(parser.childNodes);
+		nodes.forEach(Dom.remove);
+		return nodes;
+	}
+
+	/**
+	 * Checks whether the given node is a BR element that is placed within an
+	 * otherwise empty line-breaking element to ensure that the line-breaking
+	 * element it will be rendered (with one line-height).
+	 *
+	 * @param  {Node} node
+	 * @return {boolean}
+	 */
+	function isProppingBr(node) {
+		var parent = node.parentNode;
+		if ('BR' !== node.nodeName || !parent) {
+			return false;
+		}
+		if (!Styles.hasLinebreakingStyle(parent)) {
+			return false;
+		}
+		var rendered = Dom.children(parent).filter(isRendered);
+		return 1 === rendered.length && node === rendered[0];
 	}
 
 	return {
@@ -293,6 +327,7 @@ define([
 		isUnrendered                       : isUnrendered,
 		isUnrenderedWhitespace             : isUnrenderedWhitespace,
 		isUnrenderedWhitespaceNoBlockCheck : isUnrenderedWhitespaceNoBlockCheck,
+		isProppingBr                       : isProppingBr,
 		skipUnrenderedToEndOfLine          : skipUnrenderedToEndOfLine,
 		skipUnrenderedToStartOfLine        : skipUnrenderedToStartOfLine
 	};

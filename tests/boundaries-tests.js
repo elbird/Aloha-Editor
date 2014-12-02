@@ -1,16 +1,16 @@
-(function (aloha) {
+(function (aloha, module, equal, test, require) {
 	'use strict';
 
-	var Boundaries = aloha.boundaries;
-	var Mutation = aloha.mutation;
-	var BoundaryMarkers = aloha.boundarymarkers;
+	var Markers = aloha.markers;
+	var Mutation; require('../src/mutation', function (Module) { Mutation = Module; });
+	var Boundaries; require('../src/boundaries', function (Module) { Boundaries = Module; });
 
     module('boundaries');
 
 	function runTest(before, after, op) {
-		var boundaries = BoundaryMarkers.extract($(before)[0]);
+		var boundaries = Markers.extract($(before)[0]);
 		equal(
-			BoundaryMarkers.hint([op(boundaries[0]), boundaries[1]]),
+			Markers.hint([op(boundaries[0]), boundaries[1]]),
 			after,
 			before + ' ⇒ ' + after
 		);
@@ -83,10 +83,13 @@
 	test('prevWhile', function () {
 		var dom = document.createElement('div');
 		dom.innerHTML = 'foo<p>bar<b><u><i>baz</i></u>buzz</b></p>';
-		Boundaries.prevWhile(Boundaries.fromEndOfNode(dom), function (boundary) {
-			Mutation.insertTextAtBoundary('|', boundary, false);
-			return Boundaries.prevNode(boundary) !== dom;
-		});
+		Boundaries.prevWhile(
+			Boundaries.fromEndOfNode(dom),
+			function (boundary) {
+				Mutation.insertTextAtBoundary('|', boundary, false);
+				return Boundaries.prevNode(boundary) !== dom;
+			}
+		);
 		equal(
 			dom.outerHTML,
 			'<div>|foo|<p>|bar|<b>|<u>|<i>|baz|</i>|</u>|buzz|</b>|</p>|</div>'
@@ -96,10 +99,13 @@
 	test('nextWhile', function () {
 		var dom = document.createElement('div');
 		dom.innerHTML = 'foo<p>bar<b><u><i>baz</i></u>buzz</b></p>';
-		Boundaries.nextWhile(Boundaries.fromNode(dom.firstChild), function (boundary) {
-			Mutation.insertTextAtBoundary('|', boundary, true);
-			return Boundaries.nextNode(boundary) !== dom;
-		});
+		Boundaries.nextWhile(
+			Boundaries.fromStartOfNode(dom),
+			function (boundary) {
+				Mutation.insertTextAtBoundary('|', boundary, true);
+				return Boundaries.nextNode(boundary) !== dom;
+			}
+		);
 		equal(
 			dom.outerHTML,
 			'<div>|foo|<p>|bar|<b>||<u>||<i>|baz|</i>||</u>|buzz|</b>||</p>||</div>'
@@ -108,7 +114,7 @@
 
 	test('nodeBefore & nodeAfter', function () {
 		var t = function (markup, expected) {
-			var boundaries = BoundaryMarkers.extract($(markup)[0]);
+			var boundaries = Markers.extract($(markup)[0]);
 			var left = Boundaries.prevNode(boundaries[0]);
 			var right = Boundaries.nextNode(boundaries[1]);
 			equal(left.data || left.nodeName, expected[0], markup + ' => ' + expected.join());
@@ -129,4 +135,4 @@
 		t('<p><i>{foo</i>b<u>a}<u>r</p>', ['I', 'U']);
 	});
 
-}(window.aloha));
+}(window.aloha, window.module, window.equal, window.test, window.require));

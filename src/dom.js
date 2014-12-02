@@ -4,23 +4,26 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ * @namespace dom
  */
 define([
 	'functions',
-	'dom/attrs',
+	'dom/attributes',
 	'dom/classes',
 	'dom/mutation',
 	'dom/nodes',
 	'dom/style',
 	'dom/traversing',
-], function Dom(
+	'browsers'
+], function (
 	Fn,
-	Attrs,
+	Attributes,
 	Classes,
 	Mutation,
 	Nodes,
 	Style,
-	Traversing
+	Traversing,
+	Browsers
 ) {
 	'use strict';
 
@@ -30,11 +33,11 @@ define([
 	 * the true state, or the Element child of a Document whose designMode is
 	 * enabled.
 	 *
-	 * An element with the class "aloha-editable" is considered an editing
-	 * host.
+	 * An element with the class "aloha-editable" is considered an editing host.
 	 *
 	 * @param {!Node} node
 	 * @return {boolean} True if `node` is content editable.
+	 * @memberOf dom
 	 */
 	function isEditingHost(node) {
 		if (!Nodes.isElementNode(node)) {
@@ -60,6 +63,7 @@ define([
 	 *
 	 * @param  {Element} node
 	 * @return {boolean}
+	 * @memberOf dom
 	 */
 	function isContentEditable(node) {
 		return Nodes.isElementNode(node) && 'true' === node.contentEditable;
@@ -70,12 +74,13 @@ define([
 	 *
 	 * An element with the class "aloha-editable" is considered editable.
 	 *
-	 * @reference:
+	 * @see:
 	 * http://www.whatwg.org/specs/web-apps/current-work/multipage/editing.html#contenteditable
 	 * http://www.whatwg.org/specs/web-apps/current-work/multipage/editing.html#designMode
 	 *
 	 * @param {!Node} node
 	 * @return {boolean}
+	 * @memberOf dom
 	 */
 	function isEditable(node) {
 		if (!Nodes.isElementNode(node)) {
@@ -103,21 +108,27 @@ define([
 		return isEditable(parent);
 	}
 
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf dom
+	 */
 	function isEditableNode(node) {
 		return isEditable(Nodes.isTextNode(node) ? node.parentNode : node);
 	}
 
 	/**
-	 * Checks whether the given element is an editing host.
+	 * Gets the given node's editing host.
 	 *
-	 * @param {!Node} node
+	 * @param  {Node} node
 	 * @return {boolean}
+	 * @memberOf dom
 	 */
 	function editingHost(node) {
 		if (isEditingHost(node)) {
 			return node;
 		}
-		if (!isEditable(node)) {
+		if (!isEditableNode(node)) {
 			return null;
 		}
 		var ancestor = node.parentNode;
@@ -127,21 +138,19 @@ define([
 		return ancestor;
 	}
 
+	/**
+	 * Finds the nearest editable ancestor of the given node.
+	 *
+	 * @param  {Node} node
+	 * @return {Element}
+	 * @memberOf dom
+	 */
 	function editableParent(node) {
 		var ancestor = node.parentNode;
 		while (ancestor && !isEditable(ancestor)) {
 			ancestor = ancestor.parentNode;
 		}
 		return ancestor;
-	}
-
-	var parser = document.createElement('DIV');
-
-	function parseNode(html) {
-		parser.innerHTML = html;
-		var node = parser.firstChild;
-		parser.removeChild(node);
-		return node;
 	}
 
 	/**
@@ -159,34 +168,19 @@ define([
 	 */
 	var Serializer = window.XMLSerializer && new window.XMLSerializer();
 
-	function stringify(node) {
+	function serialize(node) {
 		return Serializer.serializeToString(node);
 	}
 
-	function isNode(node) {
-		var str = Object.prototype.toString.call(node);
+	/**
+	 * true if obj is a Node
+	 * @param  {*} node
+	 * @return {boolean}
+	 */
+	function isNode(obj) {
+		var str = Object.prototype.toString.call(obj);
 		// TODO: is this really the best way to do it?
 		return (/^\[object (Text|Comment|HTML\w*Element)\]$/).test(str);
-	}
-
-	function parseReviver(key, value) {
-		if (value && value['type'] === 'Node') {
-			var str = value['value'];
-			if (null != str) {
-				value = parseNode(str);
-			}
-		}
-		return value;
-	}
-
-	function stringifyReplacer(key, value) {
-		if (value && isNode(value)) {
-			value = {
-				'type': 'Node',
-				'value': stringify(value)
-			};
-		}
-		return value;
 	}
 
 	var expandoIdCnt = 0;
@@ -201,13 +195,13 @@ define([
 
 	function enableSelection(elem) {
 		elem.removeAttribute('unselectable', 'on');
-		Style.set(elem, Browsers.VENDOR_PREFIX + '-user-select', 'all');
+		Style.set(elem, Browsers.VENDOR_PREFIX + 'user-select', 'all');
 		elem.onselectstart = null;
 	}
 
 	function disableSelection(elem) {
 		elem.removeAttribute('unselectable', 'on');
-		Style.set(elem, Browsers.VENDOR_PREFIX + '-user-select', 'none');
+		Style.set(elem, Browsers.VENDOR_PREFIX + 'user-select', 'none');
 		elem.onselectstart = Fn.returnFalse;
 	}
 
@@ -216,6 +210,7 @@ define([
 	 *
 	 * @param   {Document} doc
 	 * @returns {Window}
+	 * @memberOf dom
 	 */
 	function documentWindow(doc) {
 		return doc['defaultView'] || doc['parentWindow'];
@@ -226,6 +221,7 @@ define([
 	 *
 	 * @param  {!Document} doc
 	 * @return {number}
+	 * @memberOf dom
 	 */
 	function scrollTop(doc) {
 		var win = documentWindow(doc);
@@ -242,6 +238,7 @@ define([
 	 *
 	 * @param  {!Document} doc
 	 * @return {number}
+	 * @memberOf dom
 	 */
 	function scrollLeft(doc) {
 		var win = documentWindow(doc);
@@ -251,6 +248,49 @@ define([
 		var docElem = doc.documentElement;
 		var scrollLeftElem = docElem.clientWidth ? docElem : doc.body;
 		return scrollLeftElem.scrollLeft;
+	}
+
+	/**
+	 * Calculate absolute offsetTop or offsetLeft properties
+	 * for an element
+	 *
+	 * @private
+	 * @param {!Element} element
+	 * @param {string}   property
+	 * @return {integer}
+	 */
+	function absoluteOffset(element, property) {
+		var offset = element[property];
+		var parent = element.offsetParent;
+		while (parent) {
+			offset += parent[property];
+			parent = parent.offsetParent;
+		}
+		return offset;
+	}
+
+	/**
+	 * Calculates the absolute top position
+	 * of an element
+	 *
+	 * @param {!Element} element
+	 * @return {integer}
+	 * @memberOf dom
+	 */
+	function absoluteTop(element) {
+		return absoluteOffset(element, 'offsetTop');
+	}
+
+	/**
+	 * Calculates the absolute left position
+	 * of an element
+	 *
+	 * @param {!Element} element
+	 * @return {integer}
+	 * @memberOf dom
+	 */
+	function absoluteLeft(element) {
+		return absoluteOffset(element, 'offsetLeft');
 	}
 
 	return {
@@ -270,6 +310,7 @@ define([
 		normalizedNodeIndex     : Nodes.normalizedNodeIndex,
 		realFromNormalizedIndex : Nodes.realFromNormalizedIndex,
 		normalizedNumChildren   : Nodes.normalizedNumChildren,
+		isNode                  : isNode,
 		isTextNode              : Nodes.isTextNode,
 		isElementNode           : Nodes.isElementNode,
 		isFragmentNode          : Nodes.isFragmentNode,
@@ -302,16 +343,15 @@ define([
 		removeClass  : Classes.remove,
 		hasClass     : Classes.has,
 
-		attrNames    : Attrs.attrNames,
-		hasAttrs     : Attrs.has,
-		attrs        : Attrs.attrs,
-		setAttr      : Attrs.set,
-		setAttrNS    : Attrs.setNS,
-		getAttr      : Attrs.get,
-		getAttrNS    : Attrs.getNS,
-		removeAttr   : Attrs.remove,
-		removeAttrNS : Attrs.removeNS,
-		removeAttrs  : Attrs.removeAll,
+		attrs        : Attributes.attrs,
+		getAttr      : Attributes.get,
+		getAttrNS    : Attributes.getNS,
+		hasAttrs     : Attributes.has,
+		removeAttr   : Attributes.remove,
+		removeAttrNS : Attributes.removeNS,
+		removeAttrs  : Attributes.removeAll,
+		setAttr      : Attributes.set,
+		setAttrNS    : Attributes.setNS,
 
 		removeStyle       : Style.remove,
 		setStyle          : Style.set,
@@ -329,6 +369,8 @@ define([
 		prevUntil                    : Traversing.prevUntil,
 		prevSibling                  : Traversing.prevSibling,
 		prevSiblings                 : Traversing.prevSiblings,
+		nodeAndNextSiblings          : Traversing.nodeAndNextSiblings,
+		nodeAndPrevSiblings          : Traversing.nodeAndPrevSiblings,
 		walk                         : Traversing.walk,
 		walkRec                      : Traversing.walkRec,
 		walkUntilNode                : Traversing.walkUntilNode,
@@ -342,11 +384,12 @@ define([
 		childAndParentsUntilIncl     : Traversing.childAndParentsUntilIncl,
 		childAndParentsUntilNode     : Traversing.childAndParentsUntilNode,
 		childAndParentsUntilInclNode : Traversing.childAndParentsUntilInclNode,
+		parentsUntil                 : Traversing.parentsUntil,
+		parentsUntilIncl             : Traversing.parentsUntilIncl,
+		forwardPreorderBacktraceUntil  : Traversing.forwardPreorderBacktraceUntil,
+		backwardPreorderBacktraceUntil : Traversing.backwardPreorderBacktraceUntil,
 
-		stringify         : stringify,
-		stringifyReplacer : stringifyReplacer,
-		parseReviver      : parseReviver,
-
+		serialize         : serialize,
 		ensureExpandoId   : ensureExpandoId,
 
 		enableSelection   : enableSelection,
@@ -362,6 +405,8 @@ define([
 		editingHost       : editingHost,
 		editableParent    : editableParent,
 		scrollTop         : scrollTop,
-		scrollLeft        : scrollLeft
+		scrollLeft        : scrollLeft,
+		absoluteTop       : absoluteTop,
+		absoluteLeft      : absoluteLeft
 	};
 });

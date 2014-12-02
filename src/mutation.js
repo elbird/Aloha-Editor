@@ -7,12 +7,10 @@
  */
 define([
 	'dom',
-	'arrays',
 	'boundaries',
 	'html/traversing'
-], function Mutation(
+], function (
 	Dom,
-	Arrays,
 	Boundaries,
 	Traversing
 ) {
@@ -187,12 +185,40 @@ define([
 	}
 
 	/**
+	 * List of nodes that must not be split.
+	 *
+	 * @private
+	 * @type {Object.<string, boolean>}
+	 */
+	var UNSPLITTABLE = {
+		'BODY'    : true,
+		'HTML'    : true,
+		'STYLE'   : true,
+		'SCRIPT'  : true,
+		'AREA'    : true,
+		'BASE'    : true,
+		'BR'      : true,
+		'COL'     : true,
+		'COMMAND' : true,
+		'EMBED'   : true,
+		'HR'      : true,
+		'IMG'     : true,
+		'INPUT'   : true,
+		'KEYGEN'  : true,
+		'LINK'    : true,
+		'META'    : true,
+		'PARAM'   : true,
+		'SOURCE'  : true,
+		'TRACK'   : true,
+		'WBR'     : true
+	};
+
+	/**
 	 * Splits the given boundary's ancestors until the boundary position
 	 * returns true when applyied to the given predicate.
 	 *
-	 * @private
 	 * @param  {Boundary}                    boundary
-	 * @param  {function(Boundary):Boundary} predicate
+	 * @param  {function(Boundary):boolean} predicate
 	 * @return {Boundary}
 	 */
 	function splitBoundaryUntil(boundary, predicate) {
@@ -204,10 +230,13 @@ define([
 			return splitBoundaryUntil(splitBoundary(boundary), predicate);
 		}
 		var container = Boundaries.container(boundary);
+		if (UNSPLITTABLE[container.nodeName]) {
+			return boundary;
+		}
 		var duplicate = Dom.cloneShallow(container);
 		var node = Boundaries.nodeAfter(boundary);
 		if (node) {
-			Dom.move(Dom.nextSiblings(node), duplicate);
+			Dom.move(Dom.nodeAndNextSiblings(node), duplicate);
 		}
 		Dom.insertAfter(duplicate, container);
 		return splitBoundaryUntil(Traversing.stepForward(boundary), predicate);
@@ -272,7 +301,14 @@ define([
 
 	function adjustRangesAfterTextInsert(node, off, len, insertBefore, boundaries, ranges) {
 		boundaries.push([node, off]);
-		boundaries = adjustBoundaries(adjustBoundaryAfterTextInsert, boundaries, node, off, len, insertBefore);
+		boundaries = adjustBoundaries(
+			adjustBoundaryAfterTextInsert,
+			boundaries,
+			node,
+			off,
+			len,
+			insertBefore
+		);
 		var boundary = boundaries.pop();
 		Boundaries.setRanges(ranges, boundaries);
 		return boundary;
@@ -297,7 +333,14 @@ define([
 		var offset = boundary[1];
 		if (Dom.isTextNode(container) && offset < Dom.nodeLength(container)) {
 			container.insertData(offset, text);
-			return adjustRangesAfterTextInsert(container, offset, text.length, insertBefore, boundaries, ranges);
+			return adjustRangesAfterTextInsert(
+				container,
+				offset,
+				text.length,
+				insertBefore,
+				boundaries,
+				ranges
+			);
 		}
 		var node = Dom.nodeAtOffset(container, offset);
 		var atEnd = Boundaries.isAtEnd(Boundaries.raw(container, offset));
@@ -338,7 +381,6 @@ define([
 	 * @param {!Array.<!Range>} ranges
 	 */
 	function removePreservingRanges(node, ranges) {
-		var range;
 		// Because the range may change due to the DOM modification
 		// (automatically by the browser).
 		var boundaries = Boundaries.fromRanges(ranges);
@@ -374,14 +416,14 @@ define([
 		return range;
 	}
 
-	function rangeFromBoundary(range) {
+	function boundaryFromRange(range) {
 		return Boundaries.fromRange(range)[0];
 	}
 
 	function removeNode(node, boundaries) {
 		var ranges = boundaries.map(boundaryToRange);
 		removePreservingRanges(node, ranges);
-		return ranges.map(rangeFromBoundary);
+		return ranges.map(boundaryFromRange);
 	}
 
 	function preserveCursorForShallowRemove(node, cursor) {
@@ -408,18 +450,28 @@ define([
 		Dom.removeShallow(node);
 	}
 
+	function replaceShallowPreservingBoundaries(node, replacement, boundaries) {
+		var replaced = Dom.replaceShallow(node, replacement);
+		return boundaries.reduce(function (list, boundary) {
+			return list.concat((replaced === Boundaries.container(boundary))
+			     ? [Boundaries.create(replacement, Boundaries.offset(boundary))]
+			     : [boundary]);
+		}, []);
+	}
+
 	return {
-		removeNode                     : removeNode,
-		removeShallowPreservingCursors : removeShallowPreservingCursors,
-		removePreservingRange          : removePreservingRange,
-		removePreservingRanges         : removePreservingRanges,
-		insertTextAtBoundary           : insertTextAtBoundary,
-		insertNodeAtBoundary           : insertNodeAtBoundary,
-		splitTextNode                  : splitTextNode,
-		splitTextContainers            : splitTextContainers,
-		joinTextNodeAdjustRange        : joinTextNodeAdjustRange,
-		joinTextNode                   : joinTextNode,
-		splitBoundary                  : splitBoundary,
-		splitBoundaryUntil             : splitBoundaryUntil
+		removeNode                         : removeNode,
+		removePreservingRange              : removePreservingRange,
+		removePreservingRanges             : removePreservingRanges,
+		removeShallowPreservingCursors     : removeShallowPreservingCursors,
+		replaceShallowPreservingBoundaries : replaceShallowPreservingBoundaries,
+		insertTextAtBoundary               : insertTextAtBoundary,
+		insertNodeAtBoundary               : insertNodeAtBoundary,
+		splitTextNode                      : splitTextNode,
+		splitTextContainers                : splitTextContainers,
+		joinTextNodeAdjustRange            : joinTextNodeAdjustRange,
+		joinTextNode                       : joinTextNode,
+		splitBoundary                      : splitBoundary,
+		splitBoundaryUntil                 : splitBoundaryUntil
 	};
 });

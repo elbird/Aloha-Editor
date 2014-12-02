@@ -1,58 +1,213 @@
-var pos = {
-	// Because of traversing.prevNodeBoundary()
-	container: null, 
-
+var cursor = {
 	// Because of cursor.js
-	node: null, 
-	atEnd: false
+	node  : null,
+	atEnd : false
 };
 
-var opts = {};
-// Editing.split()
-opts.clone = function () {};
-opts.until = function () {};
-opts.below = function () {};
-opts.normalizeRange = true;
-// Editing.format()
-opts.createWrapper = function () {};
-opts.isPrunable = function () {};
-opts.isStyleEqual = function () {};
-opts.isObstruction = function () {};
-// Editing.wrap()
-opts.createWrapper = function () {};
-opts.isReusable = function () {};
+var opts = {
+	// Editing.split()
+	clone          : function () {},
+	until          : function () {},
+	below          : function () {},
+	normalizeRange : true,
+	// Editing.format()
+	createWrapper  : function () {},
+	isPrunable     : function () {},
+	isStyleEqual   : function () {},
+	isObstruction  : function () {},
+	// Editing.wrap()
+	isReusable     : function () {}
+};
+
+var Settings = {
+	defaultBlockNodeName: '',
+	defaultBlock: ''
+};
 
 // Undo
-var change = {};
-change.type = 'insert';
-change.path = [];
-change.content = [];
-change.attrs = [{}];
-change.attrs[0].name = 'name';
-change.attrs[0].ns = 'namespace';
-change.attrs[0].oldValue = 'value';
-change.attrs[0].newValue = 'value';
-var changeSet = {};
-changeSet.changes = [];
-changeSet.meta = {};
-changeSet.selection = {};
-changeSet.selection.type = 'update-range';
-changeSet.selection.newRange = {};
-changeSet.selection.newRange.start = {};
-changeSet.selection.newRange.end = {};
-changeSet.selection.oldRange = {};
-changeSet.selection.oldRange.start = {};
-changeSet.selection.oldRange.end = {};
+var change = {
+	type    : '',
+	path    : [],
+	content : [],
+	attrs   : [{
+		name     : '',
+		ns       : '',
+		oldValue : '',
+		newValue : ''
+	}]
+};
+
+var Frame = {
+	opts     : {},
+	records  : [],
+	oldRange : null,
+	newRange : null
+};
+
+var changeSet = {
+	changes   : [],
+	meta      : {},
+	selection : {
+		type    :'',
+		newRange : {
+			start : {},
+			end   : {}
+		},
+		oldRange : {}
+	}
+};
 
 // Undo
-var changeSet = {};
-changeSet.changes = [];
+var changeSet = { changes: [] };
 
-var opts = {};
-// Undo.createContext()
-opts.noMutationObserver = true;
-opts.combineCharsMax = 20;
-// Undo.enter() / Undo.capture()
-opts.partitionRecords = true;
-opts.noObserve = true;
-opts.meta = {};
+var opts = {
+	// Undo.createContext()
+	noMutationObserver : true,
+	combineCharsMax    : 20,
+	// Undo.enter() / Undo.capture()
+	partitionRecords   : true,
+	noObserve          : true,
+	meta               : {}
+};
+
+var MutationObserver = {
+	takeRecords: null
+};
+
+var alohaEvent = {
+	lastMouseEvent : '',
+	type           : '',
+	target         : [],
+	editor         : null,
+	editable       : null,
+	nativeEvent    : null,
+	selection      : {},
+	meta           : '',
+	keycode        : ''
+};
+
+var parseKeys = {
+	meta    : '',
+	keycode : '',
+	key     : '',
+	chr     : ''
+};
+
+var Boromir = {
+	name         : function () {},
+	text         : function () {},
+	children     : function () {},
+	affinity     : function () {},
+	attrs        : function () {},
+	attr         : function () {},
+	style        : function () {},
+	updateDom    : function () {},
+	asDom        : function () {},
+	create       : function () {},
+	hasClass     : function () {},
+	addClass     : function () {},
+	removeClass  : function () {}
+};
+
+var Record = {
+	domNode             : null,
+	type                : null,
+	name                : null,
+	text                : null,
+	children            : null,
+	affinity            : false,
+	classes             : {},
+	define              : function () {},
+	hookSetter          : function () {},
+	hookSetterRecompute : function () {},
+	asTransient         : function () {},
+	asPersistent        : function () {},
+	get                 : function () {},
+	set                 : function () {},
+	setT                : function () {},
+	delay               : function () {},
+	delayT              : function () {},
+	realize             : function () {},
+	obj                 : {}
+};
+
+var DelayedMap = {
+	keys          : [],
+	has           : function () {},
+	isRealized    : function () {},
+	mergeObject   : {},
+	_map_opts     : {},
+	_map_data     : null,
+	_map_source   : null,
+	_map_realized : null
+};
+
+var editable = {
+	undo        : null,
+	overrides   : []
+};
+
+var undoContext = {
+	observer     : null,
+	frame        : {},
+	elem         : null,
+	stack        : [],
+	history      : [],
+	historyIndex : 0,
+	opts         : {
+		disconnect     : function () {},
+		observeAll     : function () {},
+		takeChanges    : function () {},
+		discardChanges : function () {}
+	}
+}
+
+var SelectionContext = {
+	boundaries     : null,
+	caret          : null,
+	focus          : '',
+	mousedown      : null,
+	dragging       : false,
+	doubleclicking : false,
+	tripleclicking : false,
+	formatting     : [],
+	overrides      : []
+};
+
+var dndContext = {
+	dropEffect : '',
+	element    : null,
+	target     : null,
+	data       : []
+};
+
+var editor = {
+	stack       : [],
+	editables   : {},
+	BLOCK_CLASS : '',
+	CARET_CLASS : '',
+	selection   : null,
+	dnd         : null
+};
+
+var action = {
+	clearOverrides : true,
+	preventDefault : true,
+	undo           : '',
+	mutate         : function () {}
+};
+
+var Nodes = {
+	ELEMENT                : 0,
+	ATTR                   : 0,
+	TEXT                   : 0,
+	CDATA_SECTION          : 0,
+	ENTITY_REFERENCE       : 0,
+	ENTITY                 : 0,
+	PROCESSING_INSTRUCTION : 0,
+	COMMENT                : 0,
+	DOCUMENT               : 0,
+	DOCUMENTTYPE           : 0,
+	DOCUMENT_FRAGMENT      : 0,
+	NOTATION               : 0
+};

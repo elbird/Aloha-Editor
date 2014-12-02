@@ -5,10 +5,11 @@
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
  *
- * @reference
+ * @see
  * http://www.w3.org/TR/DOM-Level-3-Events/#idl-interface-MouseEvent-initializers
+ * @namespace events
  */
-define(['misc', 'assert'], function Events(Misc, Assert) {
+define(['misc', 'assert'], function (Misc, Assert) {
 	'use strict';
 
 	/**
@@ -25,6 +26,7 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 *        object.
 	 * @param {boolean=} opt_useCapture
 	 *        Optional.  Whether to add the handler in the capturing phase.
+	 * @memberOf events
 	 */
 	function add(obj, event, handler, opt_useCapture) {
 		var useCapture = !!opt_useCapture;
@@ -50,6 +52,7 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 * @param {boolean=} opt_useCapture
 	 *        Optional.  Must be true if the handler was registered with a true
 	 *        useCapture argument.
+	 * @memberOf events
 	 */
 	function remove(obj, event, handler, opt_useCapture) {
 		var useCapture = !!opt_useCapture;
@@ -62,6 +65,12 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 		}
 	}
 
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf events
+	 */
 	function dispatch(doc, obj, event) {
 		var eventObj;
 		if (obj.dispatchEvent) {
@@ -84,21 +93,12 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	/**
 	 * Given an event object, checks whether the ctrl key is depressed.
 	 *
-	 * @param  {Object}  event
+	 * @param  {Event} event
 	 * @return {boolean}
+	 * @memberOf events
 	 */
-	function isWithCtrl(event) {
-		return event.meta.indexOf('ctrl') > -1;
-	}
-
-	/**
-	 * Given an event object, checks whether the shift key is depressed.
-	 *
-	 * @param  {Object}  event
-	 * @return {boolean}
-	 */
-	function isWithShift(event) {
-		return event.meta.indexOf('shift') > -1;
+	function hasKeyModifier(event, modifier) {
+		return event.meta.indexOf(modifier) > -1;
 	}
 
 	/**
@@ -111,6 +111,7 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 * https://github.com/NobleJS/setImmediate
 	 *
 	 * @param fn {function} a function to call
+	 * @memberOf events
 	 */
 	function nextTick(fn) {
 		setTimeout(fn, 4);
@@ -120,14 +121,17 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 * Sets up all editing browser events to call `editor` on the given
 	 * document.
 	 *
-	 * @reference
+	 * @see
 	 * https://en.wikipedia.org/wiki/DOM_Events
 	 * http://www.w3.org/TR/DOM-Level-3-Events
 	 *
-	 * @param {function(Object)} editor
-	 * @param {Element}          document
+	 * @param {function} editor
+	 * @param {Document} doc
+	 * @memberOf events
 	 */
-	function setup(editor, doc) {
+	function setup(doc, editor) {
+		add(doc, 'resize',    editor);
+
 		add(doc, 'keyup',     editor);
 		add(doc, 'keydown',   editor);
 		add(doc, 'keypress',  editor);
@@ -154,6 +158,7 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 * behavior for it.
 	 *
 	 * @param {Event} event
+	 * @memberOf events
 	 */
 	function preventDefault(event) {
 		if (event.preventDefault) {
@@ -167,6 +172,7 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 * Stops this event from bubbling any further up the DOM tree.
 	 *
 	 * @param {Event} event
+	 * @memberOf events
 	 */
 	function stopPropagation(event) {
 		if (event.stopPropagation) {
@@ -182,18 +188,57 @@ define(['misc', 'assert'], function Events(Misc, Assert) {
 	 * the DOM tree from being notified of this event.
 	 *
 	 * @param {Event} event
+	 * @memberOf events
 	 */
 	function suppress(event) {
 		stopPropagation(event);
 		preventDefault(event);
 	}
 
+	/**
+	 * returns true if obj is a native browser event object
+	 *
+	 * @param  {*} obj
+	 * @return {boolean}
+	 * @memberOf events
+	 */
+	function is(obj) {
+		if (obj &&
+			obj.hasOwnPropery &&
+			obj.hasOwnPropery('type') &&
+			obj.stopPropagation &&
+			obj.preventDefault) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * returns true if obj is an Aloha Event object
+	 *
+	 * @param  {*} obj
+	 * @return {boolean}
+	 * @memberOf events
+	 */
+	function isAlohaEvent(obj) {
+		if (obj &&
+			obj.hasOwnProperty &&
+			obj.hasOwnProperty('nativeEvent') &&
+			obj.hasOwnProperty('editable') &&
+			obj.hasOwnProperty('selection') &&
+			obj.hasOwnProperty('dnd')) {
+			return true;
+		}
+		return false;
+	}
+
 	return {
+		is              : is,
+		isAlohaEvent    : isAlohaEvent,
 		add             : add,
 		remove          : remove,
 		setup           : setup,
-		isWithCtrl      : isWithCtrl,
-		isWithShift     : isWithShift,
+		hasKeyModifier  : hasKeyModifier,
 		dispatch        : dispatch,
 		nextTick        : nextTick,
 		preventDefault  : preventDefault,

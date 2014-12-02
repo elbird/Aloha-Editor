@@ -4,23 +4,23 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor. 
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php 
+ * @namespace browsers
  */
-define([], function Browsers() {
+define([], function () {
 	'use strict';
 
 	/**
 	 * CSS vendor prefix string for the host user agent.
 	 *
 	 * @type {string}
+	 * @memberOf browsers
 	 */
 	var VENDOR_PREFIX = '';
-
 	var testElem = document.createElement('div');
-	var prefixes = ['-webkit', '-moz', '-o'];
+	var prefixes = ['', '-webkit-', '-moz-', '-ms-', '-o-'];
 	var style = testElem.style;
-	var i;
-	for (i = 0; i < prefixes.length; i++) {
-		if (style.hasOwnProperty(prefixes[i] + '-transform')) {
+	for (var i = 0; i < prefixes.length; i++) {
+		if (style.hasOwnProperty(prefixes[i] + 'transform')) {
 			VENDOR_PREFIX = prefixes[i];
 		}
 	}
@@ -33,8 +33,28 @@ define([], function Browsers() {
 	        || /(msie) ([\w.]+)/.exec(ua)
 	        || (ua.indexOf('compatible') < 0
 	            && /(mozilla)(?:.*? rv:([\w.]+)|)/.exec(ua));
-
-	var vendor, version, ie7, chrome, safari, webkit;
+	/** This property is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf browsers*/
+	var vendor;
+	/** This property is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf browsers*/
+	var version;
+	/** @TODO we should export ie */
+	var ie7;
+	/** This property is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf browsers*/
+	var chrome;
+	/** This property is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf browsers*/
+	var safari;
+	/** This property is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf browsers*/
+	var webkit;
 	ie7 = chrome = safari = webkit = false;
 
 	if (info) {
@@ -51,13 +71,13 @@ define([], function Browsers() {
 	}
 
 	var exports = {
-		ie7               : ie7,
-		chrome            : chrome,
-		webkit            : webkit,
-		safari            : safari,
-		vendor            : vendor,
-		version           : version,
-		VENDOR_PREFIX     : VENDOR_PREFIX
+		ie7           : ie7,
+		chrome        : chrome,
+		webkit        : webkit,
+		safari        : safari,
+		vendor        : vendor,
+		version       : version,
+		VENDOR_PREFIX : VENDOR_PREFIX
 	};
 
 	if (info) {

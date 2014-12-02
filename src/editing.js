@@ -1,23 +1,29 @@
-/* editing.js is part of Aloha Editor project http://aloha-editor.org
+/** editing.js is part of Aloha Editor project http://aloha-editor.org
  *
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
  *
- * TODO formatStyle: in the following case the outer "font-family:
- *      arial" span should be removed.  Can be done similar to how
- *      findReusableAncestor() works.
+ * @TODO formatStyle: in the following case the outer "font-family:
+ * arial" span should be removed.  Can be done similar to how
+ * findReusableAncestor() works.
+ * <pre>
  *      <span style="font-family: arial">
  *         <span style="font-family: times">one</span>
  *         <span style="font-family: helvetica">two<span>
  *      </span>
- * TODO better handling of the last <br/> in a block and generally of
- *      unrendered whitespace. For example formatting
+ *</pre>
+ * @TODO better handling of the last <br/> in a block and generally of
+ *      unrendered whitespace.
+ *      For example:
+ *      formatting
  *      <p>{some<br/>text<br/>}</p>
  *      will result in
  *      <p>{<b>some<br/>text<br/></b>}</p>
  *      while it should probably be
  *      <p>{<b>some</br>text</b>}<br/></p>
+ *
+ * @namespace editing
  */
 define([
 	'dom',
@@ -29,11 +35,13 @@ define([
 	'functions',
 	'html',
 	'html/elements',
-	'ranges',
 	'stable-range',
 	'cursors',
-	'content'
-], function Editing(
+	'content',
+	'lists',
+	'links',
+	'overrides'
+], function (
 	Dom,
 	Mutation,
 	Boundaries,
@@ -43,14 +51,17 @@ define([
 	Fn,
 	Html,
 	HtmlElements,
-	Ranges,
 	StableRange,
 	Cursors,
-	Content
+	Content,
+	Lists,
+	Links,
+	Overrides
 ) {
 	'use strict';
 
 	/**
+	 * @private
 	 * Walks the siblings of the given child, calling before for
 	 * siblings before the given child, after for siblings after the
 	 * given child, and at for the given child.
@@ -68,6 +79,7 @@ define([
 	}
 
 	/**
+	 * @private
 	 * Walks the siblings of each node in the given array (see
 	 * walkSiblings()).
 	 *
@@ -122,6 +134,7 @@ define([
 	}
 
 	/**
+	 * @private
 	 * Walks the boundary of the range.
 	 *
 	 * The range's boundary starts at startContainer/startOffset, goes
@@ -134,7 +147,15 @@ define([
 	 * Requires range's boundary points to be between nodes
 	 * (Mutation.splitTextContainers).
 	 */
-	function walkBoundaryLeftRightInbetween(liveRange, carryDown, stepLeftStart, stepRightStart, stepLeftEnd, stepRightEnd, stepPartial, stepInbetween, arg) {
+	function walkBoundaryLeftRightInbetween(liveRange,
+	                                        carryDown,
+	                                        stepLeftStart,
+	                                        stepRightStart,
+	                                        stepLeftEnd,
+	                                        stepRightEnd,
+	                                        stepPartial,
+	                                        stepInbetween,
+	                                        arg) {
 		// Because range may be mutated during traversal, we must only
 		// refer to it before traversal.
 		var cac = liveRange.commonAncestorContainer;
@@ -187,8 +208,23 @@ define([
 	 * Requires range's boundary points to be between nodes
 	 * (Mutation.splitTextContainers).
 	 */
-	function walkBoundaryInsideOutside(liveRange, carryDown, stepOutside, stepPartial, stepInside, arg) {
-		walkBoundaryLeftRightInbetween(liveRange, carryDown, stepOutside, stepInside, stepInside, stepOutside, stepPartial, stepInside, arg);
+	function walkBoundaryInsideOutside(liveRange,
+	                                   carryDown,
+	                                   stepOutside,
+	                                   stepPartial,
+	                                   stepInside,
+	                                   arg) {
+		walkBoundaryLeftRightInbetween(
+			liveRange,
+			carryDown,
+			stepOutside,
+			stepInside,
+			stepInside,
+			stepOutside,
+			stepPartial,
+			stepInside,
+			arg
+		);
 	}
 
 	/**
@@ -202,20 +238,46 @@ define([
 	 * Requires range's boundary points to be between nodes
 	 * (Mutation.splitTextContainers).
 	 */
-	function pushDownContext(liveRange, pushDownFrom, cacOverride, getOverride, clearOverride, clearOverrideRec, pushDownOverride) {
+	function pushDownContext(liveRange,
+	                         pushDownFrom,
+	                         cacOverride,
+	                         getOverride,
+	                         clearOverride,
+	                         clearOverrideRec,
+	                         pushDownOverride) {
 		// Because range may be mutated during traversal, we must only
 		// refer to it before traversal.
 		var cac = liveRange.commonAncestorContainer;
-		walkBoundaryInsideOutside(liveRange, getOverride, pushDownOverride, clearOverride, clearOverrideRec, cacOverride);
+		walkBoundaryInsideOutside(
+			liveRange,
+			getOverride,
+			pushDownOverride,
+			clearOverride,
+			clearOverrideRec,
+			cacOverride
+		);
 		var fromCacToTop = Dom.childAndParentsUntilInclNode(
 			cac,
 			pushDownFrom
 		);
-		ascendWalkSiblings(fromCacToTop, false, getOverride, pushDownOverride, clearOverride, pushDownOverride, null);
+		ascendWalkSiblings(
+			fromCacToTop,
+			false,
+			getOverride,
+			pushDownOverride,
+			clearOverride,
+			pushDownOverride,
+			null
+		);
 		clearOverride(pushDownFrom);
 	}
 
-	function findReusableAncestor(range, hasContext, getOverride, isUpperBoundary, isReusable, isObstruction) {
+	function findReusableAncestor(range,
+	                              hasContext,
+	                              getOverride,
+	                              isUpperBoundary,
+	                              isReusable,
+	                              isObstruction) {
 		var obstruction = null;
 		function beforeAfter(node) {
 			obstruction = (obstruction
@@ -373,7 +435,9 @@ define([
 			var override = getInheritableOverride(node);
 			if (null != override && !isContextOverride(override)) {
 				topmostOverrideNode = node;
-				isNonClearableOverride = isNonClearableOverride || upperBoundaryAndAbove || !isClearable(node);
+				isNonClearableOverride = isNonClearableOverride
+				                      || upperBoundaryAndAbove
+				                      || !isClearable(node);
 				if (null == cacOverride) {
 					cacOverride = override;
 				}
@@ -387,20 +451,47 @@ define([
 			if (!topmostOverrideNode) {
 				// Because, if there is no override in the way, we only
 				// need to clear the overrides contained in the range.
-				walkBoundaryInsideOutside(liveRange, getOverride, pushDownOverride, clearOverride, clearOverrideRec);
+				walkBoundaryInsideOutside(
+					liveRange,
+					getOverride,
+					pushDownOverride,
+					clearOverride,
+					clearOverrideRec
+				);
 			} else {
 				var pushDownFrom = topmostOverrideNode;
-				pushDownContext(liveRange, pushDownFrom, cacOverride, getOverride, clearOverride, clearOverrideRec, pushDownOverride);
+				pushDownContext(
+					liveRange,
+					pushDownFrom,
+					cacOverride,
+					getOverride,
+					clearOverride,
+					clearOverrideRec,
+					pushDownOverride
+				);
 			}
 		} else {
 			var mySetContext = function (node, override) {
 				setContext(node, override, isNonClearableOverride);
 			};
-			var reusableAncestor = findReusableAncestor(liveRange, hasContext, getOverride, isUpperBoundary, isReusable, isObstruction);
+			var reusableAncestor = findReusableAncestor(
+				liveRange,
+				hasContext,
+				getOverride,
+				isUpperBoundary,
+				isReusable,
+				isObstruction
+			);
 			if (reusableAncestor) {
 				mySetContext(reusableAncestor);
 			} else {
-				walkBoundaryInsideOutside(liveRange, getOverride, pushDownOverride, clearOverride, mySetContext);
+				walkBoundaryInsideOutside(
+					liveRange,
+					getOverride,
+					pushDownOverride,
+					clearOverride,
+					mySetContext
+				);
 			}
 		}
 	}
@@ -413,6 +504,12 @@ define([
 		}
 	}
 
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf editing
+	 */
 	function wrap(node, wrapper, leftPoint, rightPoint) {
 		if (!Content.allowsNesting(wrapper.nodeName, node.nodeName)) {
 			return false;
@@ -426,7 +523,7 @@ define([
 		return true;
 	}
 
-	// NB: depends on fixupRange to use Ranges.trimClosingOpening() to move the
+	// NB: depends on fixupRange to use trimClosingOpening() to move the
 	// leftPoint out of an cursor.atEnd position to the first node that is to be
 	// moved.
 	function moveBackIntoWrapper(node, ref, atEnd, leftPoint, rightPoint) {
@@ -435,6 +532,14 @@ define([
 		Dom.insert(node, ref, atEnd);
 	}
 
+	/**
+	 * TODO documentation
+	 *
+	 * @param  {!Range}   liveRange
+	 * @param  {function} mutate
+	 * @param  {function} trim
+	 * @return {Array.<Boundary>}
+	 */
 	function fixupRange(liveRange, mutate, trim) {
 		// Because we are mutating the range several times and don't want the
 		// caller to see the in-between updates, and because we are using
@@ -467,7 +572,7 @@ define([
 		// Also, because moveBackIntoWrapper() requires the
 		// left boundary point to be next to a non-ignorable node.
 		if (false !== trim) {
-			Ranges.trimClosingOpening(
+			trimClosingOpening(
 				range,
 				Html.isUnrenderedWhitespace,
 				Html.isUnrenderedWhitespace
@@ -504,6 +609,7 @@ define([
 
 		var boundaries = Boundaries.fromRange(range);
 		Boundaries.setRange(liveRange, boundaries[0], boundaries[1]);
+		return boundaries;
 	}
 
 	function restackRec(node, hasContext, ignoreHorizontal, ignoreVertical) {
@@ -541,14 +647,21 @@ define([
 		return context;
 	}
 
-	function ensureWrapper(node, createWrapper, isWrapper, isMergable, pruneContext, addContextValue, leftPoint, rightPoint) {
+	function ensureWrapper(node,
+	                       createWrapper,
+	                       isWrapper,
+	                       isMergable,
+	                       pruneContext,
+	                       addContextValue,
+	                       leftPoint,
+	                       rightPoint) {
 		var sibling = node.previousSibling;
 		if (sibling && isMergable(sibling) && isMergable(node)) {
 			moveBackIntoWrapper(node, sibling, true, leftPoint, rightPoint);
 			// Because the node itself may be a wrapper.
 			pruneContext(node);
 		} else if (!isWrapper(node)) {
-			var wrapper = createWrapper();
+			var wrapper = createWrapper(node.ownerDocument);
 			if (wrap(node, wrapper, leftPoint, rightPoint)) {
 				// Because we are just making sure (probably not
 				// necessary since the node isn't a wrapper).
@@ -557,7 +670,16 @@ define([
 				// Because if wrapping is not successful, we try again
 				// one level down.
 				Dom.walk(node.firstChild, function (node) {
-					ensureWrapper(node, createWrapper, isWrapper, isMergable, pruneContext, addContextValue, leftPoint, rightPoint);
+					ensureWrapper(
+						node,
+						createWrapper,
+						isWrapper,
+						isMergable,
+						pruneContext,
+						addContextValue,
+						leftPoint,
+						rightPoint
+					);
 				});
 			}
 		} else {
@@ -604,8 +726,8 @@ define([
 			Mutation.removeShallowPreservingCursors(node, [leftPoint, rightPoint]);
 		}
 
-		function createContextWrapper(value) {
-			var wrapper = createWrapper(value);
+		function createContextWrapper(value, doc) {
+			var wrapper = createWrapper(value, doc);
 			var key = ':' + value;
 			var wrappers = wrappersByContextValue[key] = wrappersByContextValue[key] || [];
 			wrappers.push(wrapper);
@@ -698,7 +820,14 @@ define([
 			function isGivenContextValue(node) {
 				return hasContextValue(node, contextValue);
 			}
-			sibling = restack(sibling, isGivenContextValue, Html.isUnrenderedWhitespace, Html.hasInlineStyle, leftPoint, rightPoint);
+			sibling = restack(
+				sibling,
+				isGivenContextValue,
+				Html.isUnrenderedWhitespace,
+				Html.hasInlineStyle,
+				leftPoint,
+				rightPoint
+			);
 			if (!sibling) {
 				return;
 			}
@@ -706,7 +835,16 @@ define([
 			var createWrapper = Fn.partial(createContextWrapper, contextValue);
 			var addValue = Fn.partial(addContextValue, contextValue);
 			var mergeNode = mergeNext ? sibling : wrapper;
-			ensureWrapper(mergeNode, createWrapper, isReusable, isMergable, pruneContext, addValue, leftPoint, rightPoint);
+			ensureWrapper(
+				mergeNode,
+				createWrapper,
+				isReusable,
+				isMergable,
+				pruneContext,
+				addValue,
+				leftPoint,
+				rightPoint
+			);
 		}
 
 		function mergeWrapper(wrapper, contextValue) {
@@ -758,8 +896,8 @@ define([
 		return styleValueA === styleValueB;
 	}
 
-	var wrapperProperties = {
-		'underline': {
+	var inlineWrapperProperties = {
+		underline: {
 			name: 'U',
 			nodes: ['U'],
 			style: 'text-decoration',
@@ -767,7 +905,7 @@ define([
 			normal: 'none',
 			normalize: {}
 		},
-		'bold': {
+		bold: {
 			name: 'B',
 			nodes: ['B', 'STRONG'],
 			style: 'font-weight',
@@ -779,7 +917,7 @@ define([
 				'400': 'normal'
 			}
 		},
-		'italic': {
+		italic: {
 			name: 'I',
 			nodes: ['I', 'EM'],
 			style: 'font-style',
@@ -788,12 +926,11 @@ define([
 			normalize: {}
 		}
 	};
-	wrapperProperties['emphasis'] = Maps.merge(wrapperProperties.italic, {name: 'EM'});
-	wrapperProperties['strong'] = Maps.merge(wrapperProperties.bold, {name: 'STRONG'});
-
-	wrapperProperties['underline'] = wrapperProperties.underline;
-	wrapperProperties['bold'] = wrapperProperties.bold;
-	wrapperProperties['italic'] = wrapperProperties.italic;
+	inlineWrapperProperties['emphasis']  = Maps.merge(inlineWrapperProperties.italic, {name: 'EM'});
+	inlineWrapperProperties['strong']    = Maps.merge(inlineWrapperProperties.bold, {name: 'STRONG'});
+	inlineWrapperProperties['bold']      = inlineWrapperProperties.bold;
+	inlineWrapperProperties['italic']    = inlineWrapperProperties.italic;
+	inlineWrapperProperties['underline'] = inlineWrapperProperties.underline;
 
 	function getStyleSafely(node, name) {
 		return (Dom.isElementNode(node)
@@ -805,7 +942,7 @@ define([
 		var isStyleEqual = opts.isStyleEqual || isStyleEqual_default;
 		var nodeNames = [];
 		var unformat = false;
-		var wrapperProps = wrapperProperties[styleName];
+		var wrapperProps = inlineWrapperProperties[styleName];
 		if (wrapperProps) {
 			nodeNames = wrapperProps.nodes;
 			styleName = wrapperProps.style;
@@ -899,12 +1036,12 @@ define([
 		function isPrunable(node) {
 			return isReusable(node) && !Dom.hasAttrs(node);
 		}
-		function createWrapper(value) {
+		function createWrapper(value, doc) {
 			value = normalizeStyleValue(value);
 			if (wrapperProps && isStyleEqual(wrapperProps.value, value)) {
-				return document.createElement(wrapperProps.name);
+				return doc.createElement(wrapperProps.name);
 			}
-			var wrapper = document.createElement('SPAN');
+			var wrapper = doc.createElement('SPAN');
 			Dom.setStyle(wrapper, styleName, value);
 			return wrapper;
 		}
@@ -932,8 +1069,8 @@ define([
 		// Because we assume nodeNames are always uppercase, but don't
 		// want the user to remember this detail.
 		nodeName = nodeName.toUpperCase();
-		function createWrapper() {
-			return document.createElement(nodeName);
+		function createWrapper(wrapper, doc) {
+			return doc.createElement(nodeName);
 		}
 		function getOverride(node) {
 			return nodeName === node.nodeName || null;
@@ -1000,13 +1137,13 @@ define([
 	/**
 	 * Ensures the given range is wrapped by elements with a given nodeName.
 	 *
-	 * @param {Range} liveRange The range of the current selection.
-	 * @param {String} nodeName The name of the tag that should serve as the
-	 *                          wrapping node.
+	 * @param {string}    nodeName
+	 * @param {!Boundary} start
+	 * @param {!Boundary} end
 	 * @param {boolean} remove Optional flag, which when set to false will cause
 	 *                         the given markup to be removed (unwrapped) rather
 	 *                         then set.
-	 * @param {Object} opts A map of options (all optional):
+	 * @param {?Object} opts A map of options (all optional):
 	 *        createWrapper - a function that returns a new empty
 	 *        wrapper node to use.
 	 *
@@ -1014,16 +1151,19 @@ define([
 	 *        already in the DOM at the correct place, can be reused
 	 *        instead of creating a new wrapper node. May be merged with
 	 *        other reusable or newly created wrapper nodes.
+	 * @return {Array.<Boundary>} updated boundaries
 	 */
-	function wrapElem(liveRange, nodeName, remove, opts) {
+	function wrapElem(nodeName, start, end, remove, opts) {
 		opts = opts || {};
+
+		var liveRange = Boundaries.range(start, end);
 
 		// Because we should avoid splitTextContainers() if this call is a noop.
 		if (liveRange.collapsed) {
-			return;
+			return [start, end];
 		}
 
-		fixupRange(liveRange, function (range, leftPoint, rightPoint) {
+		return fixupRange(liveRange, function (range, leftPoint, rightPoint) {
 			var formatter = makeElemFormatter(nodeName, remove, leftPoint, rightPoint, opts);
 			mutate(range, formatter);
 			return formatter;
@@ -1031,10 +1171,10 @@ define([
 	}
 
 	/**
-	 * Ensures the given range is wrapped by elements that have a given
-	 * CSS style set.
+	 * Ensures the contents between start and end are wrapped by elements 
+	 * that have a given CSS style set. Returns the updated boundaries.
 	 *
-	 * @param styleName a CSS style name.
+	 * @param styleName a CSS style name
 	 *        Please note that not-inherited styles currently may (or
 	 *        may not) cause undesirable results.  See also
 	 *        Html.isStyleInherited().
@@ -1058,19 +1198,141 @@ define([
 	 *        TODO currently we just use strict equals by default, but
 	 *             we should implement for each supported style it's own
 	 *             equals function.
+	 * @return {Array.<Boundary>}
+	 * @memberOf editing
 	 */
-	function format(liveRange, styleName, styleValue, opts) {
-		opts = opts || {};
-
+	function style(start, end, name, value, opts) {
+		var range = Boundaries.range(start, end);
 		// Because we should avoid splitTextContainers() if this call is a noop.
-		if (liveRange.collapsed) {
-			return;
+		if (range.collapsed) {
+			return [start, end];
 		}
-
-		fixupRange(liveRange, function (range, leftPoint, rightPoint) {
-			var formatter = makeStyleFormatter(styleName, styleValue, leftPoint, rightPoint, opts);
+		return fixupRange(range, function (range, leftPoint, rightPoint) {
+			var formatter = makeStyleFormatter(name, value, leftPoint, rightPoint, opts || {});
 			mutate(range, formatter);
 			return formatter;
+		});
+	}
+
+	/**
+	 * Applies inline formatting to contents enclosed by start and end boundary.
+	 * Will return updated array of boundaries after the operation.
+	 *
+	 * @private
+	 * @param  {string}    node
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
+	 * @param  {boolean}   isWrapping
+	 * @return {Array.<Boundary>}
+	 */
+	function formatInline(node, start, end, isWrapping) {
+		var styleName = resolveStyleName(node);
+		var boundaries = (styleName === false)
+		               ? [start, end]
+		               : style(start, end, styleName, isWrapping);
+		if (Boundaries.equals(boundaries[0], boundaries[1])) {
+			return boundaries;
+		}
+		var next = Boundaries.nodeAfter(boundaries[0]);
+		var prev = Boundaries.nodeBefore(boundaries[1]);
+		start = next
+		      ? Boundaries.normalize(Boundaries.fromStartOfNode(next))
+		      : boundaries[0];
+		end = prev
+		    ? Boundaries.normalize(Boundaries.fromEndOfNode(prev))
+		    : boundaries[1];
+		return [start, end];
+	}
+
+	/**
+	 * Resolves the according CSS style name for an uppercase (!) node name
+	 * passed in styleNode. Will return the CSS name of the style (eg. 'bold') 
+	 * or false.
+	 * So 'B' will eg. be resolved to 'bold'
+	 *
+	 * @param  {string} styleNode
+	 * @return {string|false}
+	 */
+	function resolveStyleName(styleNode) {
+		for (var styleName in inlineWrapperProperties) {
+			if (inlineWrapperProperties[styleName].nodes.indexOf(styleNode) !== -1) {
+				return styleName;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Ensures that the given start point Cursor is not at a "start position"
+	 * and the given end point Cursor is not at an "end position" by moving the
+	 * points to the left and right respectively.  This is effectively the
+	 * opposite of trimBoundaries().
+	 *
+	 * @param {Cusor} start
+	 * @param {Cusor} end
+	 * @param {function():boolean} until
+	 *        Optional predicate.  May be used to stop the trimming process from
+	 *        moving the Cursor from within an element outside of it.
+	 * @param {function():boolean} ignore
+	 *        Optional predicate.  May be used to ignore (skip)
+	 *        following/preceding siblings which otherwise would stop the
+	 *        trimming process, like for example underendered whitespace.
+	 */
+	function expandBoundaries(start, end, until, ignore) {
+		until = until || Fn.returnFalse;
+		ignore = ignore || Fn.returnFalse;
+		start.prevWhile(function (start) {
+			var prevSibling = start.prevSibling();
+			return prevSibling ? ignore(prevSibling) : !until(start.parent());
+		});
+		end.nextWhile(function (end) {
+			return !end.atEnd ? ignore(end.node) : !until(end.parent());
+		});
+	}
+
+	/**
+	 * Ensures that the given start point Cursor is not at an "start position"
+	 * and the given end point Cursor is not at an "end position" by moving the
+	 * points to the left and right respectively.  This is effectively the
+	 * opposite of expandBoundaries().
+	 *
+	 * If the boundaries are equal (collapsed), or become equal during this
+	 * operation, or if until() returns true for either point, they may remain
+	 * in start and end position respectively.
+	 *
+	 * @param {Cusor} start
+	 * @param {Cusor} end
+	 * @param {function():boolean} until
+	 *        Optional predicate.  May be used to stop the trimming process from
+	 *        moving the Cursor from within an element outside of it.
+	 * @param {function():boolean} ignore
+	 *        Optional predicate.  May be used to ignore (skip)
+	 *        following/preceding siblings which otherwise would stop the
+	 *        trimming process, like for example underendered whitespace.
+	 */
+	function trimBoundaries(start, end, until, ignore) {
+		until = until || Fn.returnFalse;
+		ignore = ignore || Fn.returnFalse;
+		start.nextWhile(function (start) {
+			return (
+				!start.equals(end)
+					&& (
+						!start.atEnd
+							? ignore(start.node)
+							: !until(start.parent())
+					)
+			);
+		});
+		end.prevWhile(function (end) {
+			var prevSibling = end.prevSibling();
+			return (
+				!start.equals(end)
+					&& (
+						prevSibling
+							? ignore(prevSibling)
+							: !until(end.parent())
+					)
+			);
 		});
 	}
 
@@ -1085,11 +1347,130 @@ define([
 	 */
 	function trimExpandBoundaries(startPoint, endPoint, trimUntil, expandUntil, ignore) {
 		var collapsed = startPoint.equals(endPoint);
-		Ranges.trimBoundaries(startPoint, endPoint, trimUntil, ignore);
-		Ranges.expandBoundaries(startPoint, endPoint, expandUntil, ignore);
+		trimBoundaries(startPoint, endPoint, trimUntil, ignore);
+		expandBoundaries(startPoint, endPoint, expandUntil, ignore);
 		if (collapsed) {
 			endPoint.setFrom(startPoint);
 		}
+	}
+
+	/**
+	 * @private
+	 */
+	function seekBoundaryPoint(range, container, offset, oppositeContainer,
+	                           oppositeOffset, setFn, ignore, backwards) {
+		var cursor = Cursors.cursorFromBoundaryPoint(container, offset);
+
+		// Because when seeking backwards, if the boundary point is inside a
+		// text node, trimming starts after it. When seeking forwards, the
+		// cursor starts before the node, which is what
+		// cursorFromBoundaryPoint() does automatically.
+		if (backwards
+				&& Dom.isTextNode(container)
+					&& offset > 0
+						&& offset < container.length) {
+			if (cursor.next()) {
+				if (!ignore(cursor)) {
+					return range;
+				}
+				// Bacause the text node can be ignored, we go back to the
+				// initial position.
+				cursor.prev();
+			}
+		}
+		var opposite = Cursors.cursorFromBoundaryPoint(
+			oppositeContainer,
+			oppositeOffset
+		);
+		var changed = false;
+		while (!cursor.equals(opposite)
+		           && ignore(cursor)
+		           && (backwards ? cursor.prev() : cursor.next())) {
+			changed = true;
+		}
+		if (changed) {
+			setFn(range, cursor);
+		}
+		return range;
+	}
+
+
+	/**
+	 * Starting with the given range's start and end boundary points, seek
+	 * inward using a cursor, passing the cursor to ignoreLeft and ignoreRight,
+	 * stopping when either of these returns true, adjusting the given range to
+	 * the end positions of both cursors.
+	 *
+	 * The dom cursor passed to ignoreLeft and ignoreRight does not traverse
+	 * positions inside text nodes. The exact rules for when text node
+	 * containers are passed are as follows: If the left boundary point is
+	 * inside a text node, trimming will start before it. If the right boundary
+	 * point is inside a text node, trimming will start after it.
+	 * ignoreLeft/ignoreRight() are invoked with the cursor before/after the
+	 * text node that contains the boundary point.
+	 *
+	 * @todo: Implement in terms of boundaries
+	 *
+	 * @param  {Range}     range
+	 * @param  {function=} ignoreLeft
+	 * @param  {function=} ignoreRight
+	 * @return {Range}
+	 */
+	function trim(range, ignoreLeft, ignoreRight) {
+		ignoreLeft = ignoreLeft || Fn.returnFalse;
+		ignoreRight = ignoreRight || Fn.returnFalse;
+		if (range.collapsed) {
+			return range;
+		}
+		// Because range may be mutated, we must store its properties before
+		// doing anything else.
+		var sc = range.startContainer;
+		var so = range.startOffset;
+		var ec = range.endContainer;
+		var eo = range.endOffset;
+		seekBoundaryPoint(
+			range,
+			sc,
+			so,
+			ec,
+			eo,
+			Cursors.setRangeStart,
+			ignoreLeft,
+			false
+		);
+		sc = range.startContainer;
+		so = range.startOffset;
+		seekBoundaryPoint(
+			range,
+			ec,
+			eo,
+			sc,
+			so,
+			Cursors.setRangeEnd,
+			ignoreRight,
+			true
+		);
+		return range;
+	}
+
+	/**
+	 * Like trim() but ignores closing (to the left) and opening positions (to
+	 * the right).
+	 *
+	 * @param  {Range}     range
+	 * @param  {function=} ignoreLeft
+	 * @param  {function=} ignoreRight
+	 * @return {Range}
+	 */
+	function trimClosingOpening(range, ignoreLeft, ignoreRight) {
+		ignoreLeft = ignoreLeft || Fn.returnFalse;
+		ignoreRight = ignoreRight || Fn.returnFalse;
+		trim(range, function (cursor) {
+			return cursor.atEnd || ignoreLeft(cursor.node);
+		}, function (cursor) {
+			return !cursor.prevSibling() || ignoreRight(cursor.prevSibling());
+		});
+		return range;
 	}
 
 	function splitBoundaryPoint(node, atEnd, leftPoint, rightPoint, removeEmpty, opts) {
@@ -1142,8 +1523,8 @@ define([
 	 * whitespace and in case of the last line, also any following unrendered
 	 * whitespace.
 	 *
-	 * @param  {Cursor}  point
-	 * @return {Boolean} True if the cursor is moved.
+	 * @param  {!Cursor} point
+	 * @return {boolean} True if the cursor is moved.
 	 */
 	function normalizeBoundary(point) {
 		if (HtmlElements.skipUnrenderedToStartOfLine(point)) {
@@ -1220,13 +1601,13 @@ define([
 	 *        After splitting the selection may still be inside the split
 	 *        nodes, for example after splitting the DOM may look like
 	 *
-	 *        <b>1</b><b>{2</b><i>3</i><i>}4</i>
+	 *        <b>1</b><b>\{2</b><i>3</i><i>\}4</i>
 	 *
 	 *	      If normalizeRange is true, the selection is trimmed to
-	 *	      correct <i>}4</i> and expanded to correct <b>{2</b>, such
+	 *	      correct <i>\}4</i> and expanded to correct <b>\{2</b>, such
 	 *        that it will look like
 	 *
-	 *	      <b>1</b>{<b>2</b><i>3</i>}<i>4</i>
+	 *	      <b>1</b>\{<b>2</b><i>3</i>\}<i>4</i>
 	 *
 	 *	      This should make both start and end points children of the
 	 *        same cac which is going to be the topmost unsplit node. This
@@ -1236,6 +1617,7 @@ define([
 	 *        may not become children of the topmost unsplit node. Also,
 	 *        if splitUntil() returns true, the selection may be moved
 	 *        out of an unsplit node which may be unexpected.
+	 * @return {Array.<Boundary>}
 	 */
 	function split(liveRange, opts) {
 		opts = opts || {};
@@ -1247,7 +1629,7 @@ define([
 			normalizeRange: true
 		}, opts);
 
-		fixupRange(liveRange, function (range, left, right) {
+		return fixupRange(liveRange, function (range, left, right) {
 			splitRangeAtBoundaries(range, left, right, opts);
 			return null;
 		});
@@ -1269,15 +1651,18 @@ define([
 	 *
 	 * TODO:
 	 * put &nbsp; at beginning and end position in order to preserve spaces at
-	 * these locations when deleting. also consider propping <p></p>'s
+	 * these locations when deleting.
 	 *
 	 * @see https://dvcs.w3.org/hg/editing/raw-file/tip/editing.html#deleting-the-selection
 	 *
-	 * @param  {Range} range
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
 	 * @return {Array.<Boundary>}
+	 * @memberOf editing
 	 */
-	function delete_(range) {
-		fixupRange(range, function delete_(range, left, right) {
+	function remove(start, end) {
+		var range = Boundaries.range(start, end);
+		return fixupRange(range, function (range, left, right) {
 			var remove = function (node) {
 				Mutation.removePreservingRange(node, range);
 			};
@@ -1324,31 +1709,34 @@ define([
 				}
 			};
 		}, false);
-		return Boundaries.fromRange(range);
 	}
 
 	/**
-	 * Creates a visual line break at the end position of the given range.
+	 * Creates a visual line break at the given boundary position.
 	 *
-	 * @reference
+	 * @see
 	 * https://dvcs.w3.org/hg/editing/raw-file/tip/editing.html#splitting-a-node-list's-parent
 	 * http://lists.whatwg.org/htdig.cgi/whatwg-whatwg.org/2011-May/031700.html
 	 *
-	 * @param  {Range}   liveRange
-	 * @param  {string}  breaker
-	 * @param  {boolean} linebreak
+	 * @param  {!Boundary} boundary
+	 * @param  {string}    breaker
 	 * @return {Array.<Boundary>}
+	 * @memberOf editing
 	 */
-	function break_(liveRange, breaker, linebreak) {
-		var range = Ranges.collapseToEnd(StableRange(liveRange));
-		var op = linebreak ? Html.insertLineBreak : Html.insertBreak;
-		var boundary = op(Boundaries.fromRangeStart(range), breaker);
-		Boundaries.setRange(liveRange, boundary, boundary);
+	function breakline(boundary, breaker) {
+		var op = 'BR' === breaker ? Html.insertLineBreak : Html.insertBreak;
+		boundary = op(boundary, breaker);
 		return [boundary, boundary];
 	}
 
-	function insert(liveRange, insertion) {
-		var range = Ranges.collapseToEnd(StableRange(liveRange));
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf editing
+	 */
+	function insert(start, end, insertion) {
+		var range = Boundaries.range(start, end);
 		split(range, {
 			below: function (node) {
 				return Content.allowsNesting(node.nodeName, insertion.nodeName);
@@ -1358,19 +1746,271 @@ define([
 			insertion,
 			Boundaries.fromRangeStart(range)
 		);
-		Boundaries.setRange(liveRange, boundary, Boundaries.create(
+		Boundaries.setRange(range, boundary, Boundaries.create(
 			Boundaries.container(boundary),
 			Boundaries.offset(boundary) + 1
 		));
-		return boundary;
+		return Boundaries.fromRangeStart(range);
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf editing
+	 */
+	function className(start, end, name, value, boundaries) {
+		throw 'Not implemented';
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf editing
+	 */
+	function attribute(start, end, name, value, boundaries) {
+		throw 'Not implemented';
+	}
+
+	/**
+	 * This function is not yet implemented.
+	 * @TODO to be implemented
+	 * @memberOf editing
+	 */
+	function cut(start, end, boundaries) {
+		throw 'Not implemented';
+	}
+
+	/**
+	 * This function is not yet implemented.
+	 * @TODO to be implemented
+	 * @memberOf editing
+	 */
+	function copy(start, end, boundaries) {
+		throw 'Not implemented';
+	}
+
+	/**
+	 * Starting with the given, returns the first node that matches the given
+	 * predicate.
+	 *
+	 * @private
+	 * @param  {!Node}                  node
+	 * @param  {function(Node):boolean} pred
+	 * @return {Node}
+	 */
+	function nearest(node, pred) {
+		return Dom.upWhile(node, function (node) {
+			return !pred(node)
+			    && !(node.parentNode && Dom.isEditingHost(node.parentNode));
+		});
+	}
+
+	/**
+	 * Expands the given start and end boundaires until the nearst containers
+	 * that match the given predicate.
+	 *
+	 * @private
+	 * @param  {Boundary}               start
+	 * @param  {Boundary}               end
+	 * @param  {function(Node):boolean} pred
+	 * @return {Array.<Boundary>}
+	 */
+	function expandUntil(start, end, pred) {
+		var node, startNode, endNode;
+		if (Html.isBoundariesEqual(start, end)) {
+			//       node ----------.
+			//        |             |
+			//        v             v
+			// </p>{}<u> or </b>{}</p>
+			node = Boundaries.nextNode(end);
+			if (Dom.isEditingHost(node)) {
+				node = Boundaries.prevNode(start);
+			}
+			if (Dom.isEditingHost(node)) {
+				return [start, end];
+			}
+			startNode = endNode = pred(node) ? node : nearest(node, pred);
+		} else {
+			startNode = nearest(Boundaries.nextNode(start), pred);
+			endNode = nearest(Boundaries.prevNode(end), pred);
+		}
+		return [
+			Boundaries.fromFrontOfNode(startNode),
+			Boundaries.fromBehindOfNode(endNode)
+		];
+	}
+
+	/**
+	 * Given a list of sibling nodes and a formatting, will apply the formatting
+	 * across the list of nodes.
+	 *
+	 * @private
+	 * @param  {string}       formatting
+	 * @param  {Array.<Node>} siblings
+	 */
+	function formatSiblings(formatting, siblings) {
+		var wrapper = null;
+		siblings.forEach(function (node) {
+			if (Html.isUnrendered(node) && !wrapper) {
+				return;
+			}
+			if (Content.allowsNesting(formatting, node.nodeName)) {
+				if (!wrapper) {
+					wrapper = node.ownerDocument.createElement(formatting);
+					Dom.insert(wrapper, node);
+				}
+				return Dom.move([node], wrapper);
+			}
+			wrapper = null;
+			if (Html.isVoidType(node)) {
+				return;
+			}
+			var children = Dom.children(node);
+			var childNames = children.map(function (child) { return child.nodeName; });
+			var canWrapChildren = childNames.length === childNames.filter(
+				Fn.partial(Content.allowsNesting, formatting)
+			).length;
+			var allowedInParent = Content.allowsNesting(
+				node.parentNode.nodeName,
+				formatting
+			);
+			if (
+				canWrapChildren              &&
+				allowedInParent              &&
+				!Html.isGroupContainer(node) &&
+				!Html.isGroupedElement(node)
+			) {
+				return Dom.replaceShallow(
+					node,
+					node.ownerDocument.createElement(formatting)
+				);
+			}
+			var i = Arrays.someIndex(children, Html.isRendered);
+			if (i > -1) {
+				formatSiblings(formatting, children.slice(i));
+			}
+		});
+	}
+
+	/**
+	 * Applies block formatting to contents enclosed by start and end boundary.
+	 * Will return updated array of boundaries after the operation.
+	 *
+	 * @private
+	 * @param  {!string}   formatting
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
+	 * @return {Array.<Boundary>}
+	 */
+	function formatBlock(formatting, start, end, preserve) {
+		var boundaries = expandUntil(start, end, Html.hasLinebreakingStyle);
+		boundaries = Html.walkBetween(
+			boundaries[0],
+			boundaries[1],
+			Fn.partial(formatSiblings, formatting)
+		);
+		start = Boundaries.fromStartOfNode(Boundaries.nextNode(boundaries[0]));
+		end = Boundaries.fromEndOfNode(Boundaries.prevNode(boundaries[1]));
+		return [Html.expandForward(start), Html.expandBackward(end)];
+	}
+
+	/**
+	 * Applies block and inline formattings (eg. 'B', 'I', 'H2' - be sure to use
+	 * UPPERCASE node names here) to contents enclosed by start and end
+	 * boundary.
+	 *
+	 * Will return updated array of boundaries after the operation.
+	 *
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
+	 * @param  {!string}   nodeName
+	 * @param  {Array.<Boundary>}
+	 * @return {Array.<Boundary>}
+	 * @memberOf editing
+	 */
+	function format(start, end, nodeName, boundaries) {
+		var range;
+		var node = {nodeName: nodeName};
+		if (nodeName.toLowerCase() === 'a') {
+			range = Links.create('', start, end);
+		} else if (Html.isTextLevelSemanticNode(node)) {
+			range = formatInline(nodeName, start, end, true);
+		} else if (Html.isListContainer(node)) {
+			range = Lists.toggle(nodeName, start, end);
+		} else if (Html.isBlockNode(node)) {
+			range = formatBlock(nodeName, start, end);
+		}
+		return range;
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * 
+	 * @memberOf editing
+	 */
+	function unformat(start, end, nodeName, boundaries) {
+	   return formatInline(nodeName, start, end, false);
+	}
+
+	/**
+	 * Toggles inline style round the given selection.
+	 *
+	 * @private
+	 * @param  {string}    nodeName
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
+	 * @return {Array.<Boundary>}
+	 */
+	function toggleInline(nodeName, start, end) {
+		var override = Overrides.nodeToState[nodeName];
+		if (!override) {
+			return [start, end];
+		}
+		var next = Boundaries.nextNode(Html.expandForward(start));
+		var prev = Boundaries.prevNode(Html.expandBackward(end));
+		var overrides = Overrides.harvest(next).concat(Overrides.harvest(prev));
+		var hasStyle = -1 < Overrides.indexOf(overrides, override);
+		var op = hasStyle ? unformat : format;
+		return op(start, end, nodeName);
+	}
+
+	/**
+	 * Toggles formatting round the given selection.
+	 *
+	 * @todo   Support block formatting
+	 * @param  {!Boundary} start
+	 * @param  {!Boundary} end
+	 * @param  {string}    nodeName
+	 * @param  {Array.<Boundary>}
+	 * @return {Array.<Boundary>}
+	 */
+	function toggle(start, end, nodeName, boundaries) {
+		var node = {nodeName: nodeName};
+		if (Html.isTextLevelSemanticNode(node)) {
+			return toggleInline(nodeName, start, end);
+		}
+		return [start, end];
 	}
 
 	return {
-		wrap   : wrapElem,
-		format : format,
-		split  : split,
-		delete : delete_,
-		break  : break_,
-		insert : insert
+		format     : format,
+		unformat   : unformat,
+		toggle     : toggle,
+		style      : style,
+		className  : className,
+		attribute  : attribute,
+		cut        : cut,
+		copy       : copy,
+		breakline  : breakline,
+		insert     : insert,
+		wrap      : wrapElem,
+
+		// obsolete
+		split     : split,
+		remove    : remove,
+		trimClosingOpening: trimClosingOpening
 	};
 });

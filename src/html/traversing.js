@@ -10,14 +10,16 @@ define([
 	'html/styles',
 	'html/predicates',
 	'dom',
+	'paths',
 	'arrays',
 	'boundaries',
 	'strings'
-], function HtmlTraversing(
+], function (
 	Elements,
 	Styles,
 	Predicates,
 	Dom,
+	Paths,
 	Arrays,
 	Boundaries,
 	Strings
@@ -190,7 +192,8 @@ define([
 	 *      http://www.w3.org/TR/REC-xml/#sec-white-space
 	 *      http://www.w3.org/TR/xhtml1/overview.html#C_15
 	 *      http://lists.w3.org/Archives/Public/www-dom/1999AprJun/0007.html
-	 *      http://www.whatwg.org/specs/web-apps/current-work/multipage/editing.html#best-practices-for-in-page-editors
+	 *      http://www.whatwg.org/specs/web-apps/current-work/multipage/editing.html
+	 *      		#best-practices-for-in-page-editors
 	 *
 	 * @private
 	 * @param  {Boundary} boundary Text boundary
@@ -236,9 +239,9 @@ define([
 		var offset = Boundaries.offset(boundary);
 		var text = textnode.data.substr(0, offset);
 
-		// "" ==> return -1
+		// "" → return -1
 		//
-		// " "  or "  " or "   " ==> return 1
+		// " "  or "  " or "   " → return 1
 		//  .       ..      ...
 		if (!NOT_WSP.test(text)) {
 			// Because `text` may be a sequence of white spaces so we need to
@@ -248,15 +251,15 @@ define([
 			     : -1;
 		}
 
-		// "a"    ==> spaces=0 ==> return offset - 0
+		// "a"    → spaces=0 → return offset - 0
 		//
-		// "a "   ==> spaces=1 ==> return offset - 0
+		// "a "   → spaces=1 → return offset - 0
 		//   .
 		//
-		// "a  "  ==> spaces=2 ==> return offset - 1
+		// "a  "  → spaces=2 → return offset - 1
 		//   ..
 		//
-		// "a   " ==> spaces=3 ==> return offset - 2
+		// "a   " → spaces=3 → return offset - 2
 		//   ...
 		var spaces = text.match(NOT_WSP_FROM_END)[0].length - 1;
 
@@ -343,9 +346,9 @@ define([
 	 * @return {Boundary}
 	 */
 	function expand(boundary, step, nodeAt, isAtStart, isAtEnd) {
-		return step(boundary, function (boundary) {
+		return Boundaries.normalize(step(boundary, function (boundary) {
 			var node = nodeAt(boundary);
-			if (!Elements.isRendered(node)) {
+			if (Elements.isUnrendered(node)) {
 				return true;
 			}
 			if (isAtEnd(boundary)) {
@@ -364,7 +367,32 @@ define([
 				return true;
 			}
 			return !Dom.isTextNode(node) && !Elements.isVoidType(node);
-		});
+		}));
+	}
+
+	/**
+	 * Steps forward (according to stepForward) while the given condition is
+	 * true.
+	 *
+	 * @private
+	 * @param  {Boundary}                   boundary
+	 * @param  {function(Boundary):boolean} cond
+	 * @return {Boundary}
+	 */
+	function nextBoundaryWhile(boundary, cond) {
+		return Boundaries.stepWhile(boundary, cond, stepForward);
+	}
+
+	/**
+	 * Steps backwards while the given condition is true.
+	 *
+	 * @private
+	 * @param  {Boundary}                   boundary
+	 * @param  {function(Boundary):boolean} cond
+	 * @return {Boundary}
+	 */
+	function prevBoundaryWhile(boundary, cond) {
+		return Boundaries.stepWhile(boundary, cond, stepBackward);
 	}
 
 	/**
@@ -379,14 +407,13 @@ define([
 	 *
 	 * </p></li><li><b><i>|foo...
 	 *
-	 * @private
 	 * @param  {Boundary} boundary
 	 * @return {Boundary}
 	 */
 	function expandBackward(boundary) {
 		return expand(
 			boundary,
-			Boundaries.prevWhile,
+			prevBoundaryWhile,
 			Boundaries.prevNode,
 			Boundaries.isAtEnd,
 			Boundaries.isAtStart
@@ -395,15 +422,15 @@ define([
 
 	/**
 	 * Expands the boundary forward.
+	 * Similar to expandBackward().
 	 *
-	 * @private
 	 * @param  {Boundary} boundary
 	 * @return {Boundary}
 	 */
 	function expandForward(boundary) {
 		return expand(
 			boundary,
-			Boundaries.nextWhile,
+			nextBoundaryWhile,
 			Boundaries.nextNode,
 			Boundaries.isAtStart,
 			Boundaries.isAtEnd
@@ -499,7 +526,7 @@ define([
 		if (Boundaries.isNodeBoundary(boundary)) {
 			var node = Boundaries.nodeBefore(boundary);
 			if (node && Elements.isVoidType(node)) {
-				return Boundaries.fromNode(node);
+				return Boundaries.fromFrontOfNode(node);
 			}
 		}
 		return Boundaries.prevRawBoundary(boundary);
@@ -571,15 +598,14 @@ define([
 	 *
 	 * Insignificant boundary positions are those where the boundary is
 	 * immediately before unrendered content.  Since such content is invisible,
-	 * the boundary is rendered as though it is after the insignificant
-	 * content.  This function simply moves the boundary forward so that the
-	 * given boundary is infact where it seems to be visually.
+	 * the boundary is rendered as though it is after the insignificant content.
+	 * This function simply moves the boundary forward so that the given
+	 * boundary is infact where it seems to be visually.
 	 *
-	 * @private
 	 * @param  {Boundary} boundary
 	 * @return {Boundary}
 	 */
-	function skipInsignificantPositions(boundary) {
+	function nextSignificantBoundary(boundary) {
 		var next = boundary;
 		var node;
 
@@ -594,12 +620,12 @@ define([
 			if (-1 === offset) {
 				node = Boundaries.nodeAfter(next);
 				if (node && Elements.isUnrendered(node)) {
-					return skipInsignificantPositions(Boundaries.jumpOver(next));
+					return nextSignificantBoundary(Boundaries.jumpOver(next));
 				}
 				if (node && Elements.isVoidType(node)) {
 					return next;
 				}
-				return skipInsignificantPositions(Boundaries.next(next));
+				return nextSignificantBoundary(Boundaries.next(next));
 			}
 
 			// Because the boundary may already be at a significant offset.
@@ -612,7 +638,7 @@ define([
 			// "foo | bar"
 			//       .
 			next = Boundaries.create(Boundaries.container(next), offset);
-			return skipInsignificantPositions(next);
+			return nextSignificantBoundary(next);
 		}
 
 		node = Boundaries.nextNode(next);
@@ -620,7 +646,7 @@ define([
 		// |"foo" or <p>|" foo"
 		//                .
 		if (Dom.isTextNode(node)) {
-			return skipInsignificantPositions(Boundaries.nextRawBoundary(next));
+			return nextSignificantBoundary(Boundaries.nextRawBoundary(next));
 		}
 
 		while (!Dom.isEditingHost(node) && Elements.isUnrendered(node)) {
@@ -635,19 +661,19 @@ define([
 	 * Checks whether the left boundary is at the same visual position as the
 	 * right boundary.
 	 *
-	 * Take note that the order of the boundary is important.
-	 * equals(left, right) is not necessarily the same as equals(right, left)
+	 * Take note that the order of the boundary is important:
+	 * (left, right) is not necessarily the same as (right, left).
 	 *
-	 * @private
 	 * @param  {Boundary} left
 	 * @param  {Boundary} right
 	 * @return {boolean}
+	 * @memberOf traversing
 	 */
-	function equals(left, right) {
+	function isBoundariesEqual(left, right) {
 		var node, consumesOffset;
 
-		left = skipInsignificantPositions(Boundaries.normalize(left));
-		right = skipInsignificantPositions(Boundaries.normalize(right));
+		left = nextSignificantBoundary(Boundaries.normalize(left));
+		right = nextSignificantBoundary(Boundaries.normalize(right));
 
 		while (left && !Boundaries.equals(left, right)) {
 			node = Boundaries.nextNode(left);
@@ -664,7 +690,7 @@ define([
 				return false;
 			}
 
-			left = skipInsignificantPositions(Boundaries.next(left));
+			left = nextSignificantBoundary(Boundaries.next(left));
 		}
 
 		return true;
@@ -674,11 +700,10 @@ define([
 	 * Moves the given boundary backwards over any positions that are (visually
 	 * insignificant)invisible.
 	 *
-	 * @private
 	 * @param  {Boundary} boundary
 	 * @return {Boundary}
 	 */
-	function skipPrevInsignificantPositions(boundary) {
+	function prevSignificantBoundary(boundary) {
 		var next = boundary;
 		var node;
 
@@ -698,14 +723,14 @@ define([
 				//     v     v
 				// "foo "</p> </div>..
 				//     .     .
-				while (equals(after, next)) {
+				while (isBoundariesEqual(after, next)) {
 					// Because linebreaks are significant positions
 					if (Styles.hasLinebreakingStyle(Boundaries.prevNode(after))) {
 						break;
 					}
 					after = Boundaries.prev(after);
 				}
-				return skipPrevInsignificantPositions(after);
+				return prevSignificantBoundary(after);
 			}
 
 			// "foo|"
@@ -716,14 +741,14 @@ define([
 			// "foo | bar"
 			//       .
 			next = Boundaries.create(Boundaries.container(next), offset);
-			return skipPrevInsignificantPositions(next);
+			return prevSignificantBoundary(next);
 		}
 
 		node = Boundaries.prevNode(next);
 
 		// <b>"foo"|</b>
 		if (Dom.isTextNode(node)) {
-			return skipPrevInsignificantPositions(Boundaries.prevRawBoundary(next));
+			return prevSignificantBoundary(Boundaries.prevRawBoundary(next));
 		}
 
 		while (!Dom.isEditingHost(node) && Elements.isUnrendered(node)) {
@@ -909,13 +934,13 @@ define([
 	 *
 	 * @param  {Boundary} boundary
 	 * @param  {string=}  unit Defaults to "offset"
-	 * @return {Boundary}
+	 * @return {?Boundary}
 	 */
 	function next(boundary, unit) {
 		if ('node' === unit) {
 			return Boundaries.next(boundary);
 		}
-		boundary = skipInsignificantPositions(Boundaries.normalize(boundary));
+		boundary = nextSignificantBoundary(Boundaries.normalize(boundary));
 		var nextBoundary;
 		switch (unit) {
 		case 'char':
@@ -924,7 +949,7 @@ define([
 		case 'word':
 			nextBoundary = nextWordBoundary(boundary);
 			// "| foo" or |</p>
-			if (equals(boundary, nextBoundary)) {
+			if (isBoundariesEqual(boundary, nextBoundary)) {
 				nextBoundary = nextVisualBoundary(boundary);
 			}
 			break;
@@ -942,36 +967,36 @@ define([
 	 * Moves the boundary backwards by a unit measure.
 	 *
 	 * The second parameter `unit` specifies the unit with which to move the
-	 * boundary.  This value may be one of the following strings:
+	 * boundary. This value may be one of the following strings:
 	 *
 	 * "char" -- Move behind the previous visible character.
 	 *
 	 * "word" -- Move behind the previous word.
 	 *
-	 *		A word is the smallest semantic unit.  It is a contigious sequence
-	 *		of visible characters terminated by a space or puncuation character
-	 *		or a word-breaker (in languages that do not use space to delimit
-	 *		word boundaries).
+	 *		A word is the smallest semantic unit. It is a contigious sequence of
+	 *		visible characters terminated by a space or puncuation character or
+	 *		a word-breaker (in languages that do not use space to delimit word
+	 *		boundaries).
 	 *
 	 * "boundary" -- Move in behind of the previous boundary and skip over void
 	 *               elements.
 	 *
 	 * "offset" -- Move behind the previous visual offset.
 	 *
-	 *		A visual offset is the smallest unit of consumed space.  This can
-	 *		be a line break, or a visible character.
+	 *		A visual offset is the smallest unit of consumed space. This can be
+	 *		a line break, or a visible character.
 	 *
 	 * "node" -- Move in front of the previous visible node.
 	 *
 	 * @param  {Boundary} boundary
 	 * @param  {string=}  unit Defaults to "offset"
-	 * @return {Boundary}
+	 * @return {?Boundary}
 	 */
 	function prev(boundary, unit) {
 		if ('node' === unit) {
 			return Boundaries.prev(boundary);
 		}
-		boundary = skipPrevInsignificantPositions(Boundaries.normalize(boundary));
+		boundary = prevSignificantBoundary(Boundaries.normalize(boundary));
 		var prevBoundary;
 		switch (unit) {
 		case 'char':
@@ -980,7 +1005,7 @@ define([
 		case 'word':
 			prevBoundary = prevWordBoundary(boundary);
 			// "foo |" or <p>|
-			if (equals(prevBoundary, boundary)) {
+			if (isBoundariesEqual(prevBoundary, boundary)) {
 				prevBoundary = prevVisualBoundary(boundary);
 			}
 			break;
@@ -991,7 +1016,7 @@ define([
 			prevBoundary = prevVisualBoundary(boundary);
 			break;
 		}
-		return skipPrevInsignificantPositions(prevBoundary);
+		return prevBoundary && prevSignificantBoundary(prevBoundary);
 	}
 
 	/**
@@ -1002,9 +1027,9 @@ define([
 	 * respect to how it is visually represented, rather than simply where it
 	 * is in the DOM tree.
 	 *
-	 * @private
 	 * @param  {Boundary} boundary
 	 * @return {boolean}
+	 * @memberOf traversing
 	 */
 	function isAtEnd(boundary) {
 		if (Boundaries.isAtEnd(boundary)) {
@@ -1030,9 +1055,9 @@ define([
 	 * respect to how it is visually represented, rather than simply where it
 	 * is in the DOM tree.
 	 *
-	 * @private
 	 * @param  {Boundary} boundary
 	 * @return {boolean}
+	 * @memberOf traversing
 	 */
 	function isAtStart(boundary) {
 		if (Boundaries.isAtStart(boundary)) {
@@ -1076,17 +1101,58 @@ define([
 		     : Boundaries.nodeBefore(boundary);
 	}
 
+	/**
+	 * Traverses between the given start and end boundaries in document order
+	 * invoking step() with a list of siblings that are wholey contained within
+	 * the two boundaries.
+	 *
+	 * @param  {!Boundary}              start
+	 * @param  {!Boundary}              end
+	 * @param  {function(Array.<Node>)} step
+	 * @return {Array.<Boundary>}
+	 */
+	function walkBetween(start, end, step) {
+		var cac = Boundaries.commonContainer(start, end);
+		var ascent = Paths.fromBoundary(cac, start).reverse();
+		var descent = Paths.fromBoundary(cac, end);
+		var node = Boundaries.container(start);
+		var children = Dom.children(node);
+		step(children.slice(
+			ascent[0],
+			node === cac ? descent[0] : children.length
+		));
+		ascent.slice(1, -1).reduce(function (node, start) {
+			var children = Dom.children(node);
+			step(children.slice(start + 1, children.length));
+			return node.parentNode;
+		}, node.parentNode);
+		if (ascent.length > 1) {
+			step(Dom.children(cac).slice(Arrays.last(ascent) + 1, descent[0]));
+		}
+		descent.slice(1).reduce(function (node, end) {
+			var children = Dom.children(node);
+			step(children.slice(0, end));
+			return children[end];
+		}, Dom.children(cac)[descent[0]]);
+		return [start, end];
+	}
+
 	return {
-		prev                  : prev,
-		next                  : next,
-		prevNode              : prevNode,
-		nextNode              : nextNode,
-		prevSignificantOffset : prevSignificantOffset,
-		nextSignificantOffset : nextSignificantOffset,
-		stepForward           : stepForward,
-		stepBackward          : stepBackward,
-		isAtStart             : isAtStart,
-		isAtEnd               : isAtEnd,
-		expandForward         : expandForward
+		prev                    : prev,
+		next                    : next,
+		prevNode                : prevNode,
+		nextNode                : nextNode,
+		prevSignificantOffset   : prevSignificantOffset,
+		nextSignificantOffset   : nextSignificantOffset,
+		prevSignificantBoundary : prevSignificantBoundary,
+		nextSignificantBoundary : nextSignificantBoundary,
+		stepForward             : stepForward,
+		stepBackward            : stepBackward,
+		isAtStart               : isAtStart,
+		isAtEnd                 : isAtEnd,
+		isBoundariesEqual       : isBoundariesEqual,
+		expandBackward          : expandBackward,
+		expandForward           : expandForward,
+		walkBetween             : walkBetween
 	};
 });

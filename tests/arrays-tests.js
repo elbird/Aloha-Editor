@@ -30,13 +30,6 @@
 		equal(0, intersection.length);
 	});
 
-	test('second()', function () {
-		var intersection = Arrays.intersect([0, 1, 2, 3], [1, 3, 5]);
-		equal(1, intersection[0]);
-		equal(2, Arrays.second([1, 2]));
-		equal(null, Arrays.second([1]));
-	});
-
 	test('last()', function () {
 		equal(2, Arrays.last([1, 2]));
 		equal(null, Arrays.last([]));
@@ -86,6 +79,17 @@
 		lists = Arrays.split(list, biggerThan5);
 		deepEqual(lists[0], [],         list.join() + ' ⇒ ' + lists[0].join());
 		deepEqual(lists[1], [10, 8, 9], list.join() + ' ⇒ ' + lists[1].join());
+	});
+
+	test('unique', function () {
+		var obj = {};
+		deepEqual(Arrays.unique([1, 2, 2]), [1, 2]);
+		deepEqual(Arrays.unique([1, 2, 2, 3]), [1, 2, 3]);
+		deepEqual(Arrays.unique([1, 2, 2, 3, 2, 4, 3, 2, 1, 5]), [1, 2, 3, 4, 5]);
+		deepEqual(Arrays.unique([1, 'hello', 2]), [1, 'hello', 2]);
+		deepEqual(Arrays.unique([1, 'hello', 2, 'hello']), [1, 'hello', 2]);
+		deepEqual(Arrays.unique([1, 'hello', 2, obj]), [1, 'hello', 2, obj]);
+		deepEqual(Arrays.unique([1, 'hello', 2, 2, obj, obj]), [1, 'hello', 2, obj]);
 	});
 
 }(window.aloha));

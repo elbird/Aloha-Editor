@@ -4,8 +4,11 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ *
+ * @todo consider moving this into html/
+ * @namespace content
  */
-define([], function Content() {
+define(['maps', 'arrays'], function (Maps, Arrays) {
 	'use strict';
 
 	var TABLE_CHILDREN = {
@@ -128,6 +131,7 @@ define([], function Content() {
 		'H4'                 : '_PHRASING_',
 		'H5'                 : '_PHRASING_',
 		'H6'                 : '_PHRASING_',
+		'HEAD'               : '_META_DATA_',
 		'HEADER'             : '_FLOW_',
 		'HGROUP'             : HGROUP_CHILDREN,
 		'HR'                 : '_EMPTY_',
@@ -497,16 +501,24 @@ define([], function Content() {
 		'#TEXT'      : FLOW_PHRASING_CATEGORY
 	};
 
-	var ATTRIBUTES_WHITELIST = {
+	/**
+	 * @private
+	 * @type {Object.<string, Array.<string>>}
+	 */
+	var DEFAULT_ATTRIBUTES_WHITELIST = {
 		'IMG' : ['alt', 'src'],
-		'A'   : ['href', '_target'],
+		'A'   : ['href', 'name', '_target'],
 		'TD'  : ['colspan', 'rowspan'],
 		'TH'  : ['colspan', 'rowspan'],
 		'OL'  : ['start', 'type'],
 		'*'   : ['xstyle']
 	};
 
-	var STYLES_WHITELIST = {
+	/**
+	 * @private
+	 * @type {Object.<string, Array.<string>>}
+	 */
+	var DEFAULT_STYLES_WHITELIST = {
 		'TABLE' : ['width'],
 		'IMG'   : ['width', 'height'],
 		'*'     : [
@@ -517,33 +529,81 @@ define([], function Content() {
 		]
 	};
 
-	var NODES_BLACKLIST = [
-		'AUDIO',
-		'COMMAND',
-		'COLGROUP',
-		'IFRAME',
-		'INPUT',
-		'INS',
-		'KBD',
-		'KEYGEN',
-		'LINK',
-		'META',
-		'NOSCRIPT',
-		'OUTPUT',
-		'Q',
-		'RUBY',
-		'SAMP',
-		'SCRIPT',
-		'SELECT',
-		'STYLE',
-		'TEMPLATE',
-		'TEXTAREA',
-		'TITLE',
-		'WBR'
-	];
+	/**
+	 * @private
+	 * @type {Array.<string>}
+	 */
+	var NODES_BLACKLIST = {
+		'AUDIO'    : true,
+		'COMMAND'  : true,
+		'COLGROUP' : true,
+		'IFRAME'   : true,
+		'INPUT'    : true,
+		'INS'      : true,
+		'KBD'      : true,
+		'KEYGEN'   : true,
+		'LINK'     : true,
+		'META'     : true,
+		'NOSCRIPT' : true,
+		'OUTPUT'   : true,
+		'Q'        : true,
+		'RUBY'     : true,
+		'SAMP'     : true,
+		'SCRIPT'   : true,
+		'SELECT'   : true,
+		'STYLE'    : true,
+		'TEMPLATE' : true,
+		'TEXTAREA' : true,
+		'TITLE'    : true,
+		'WBR'      : true
+	};
 
 	/**
-	 * Checks whether the node name `outer` is allowed to contain in a node with
+	 * @private
+	 * @type {Object.<string, string>}
+	 */
+	var DEFAULT_TRANSLATION = {
+		'FONT': 'SPAN'
+	};
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf content
+	 */
+	function allowedStyles(overrides) {
+		return Maps.merge({}, DEFAULT_STYLES_WHITELIST, overrides);
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf content
+	 */
+	function allowedAttributes(overrides) {
+		return Maps.merge({}, DEFAULT_ATTRIBUTES_WHITELIST, overrides);
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf content
+	 */
+	function disallowedNodes(overrides) {
+		return Maps.merge({}, NODES_BLACKLIST, overrides);
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf content
+	 */
+	function nodeTranslations(overrides) {
+		return Maps.merge({}, DEFAULT_TRANSLATION, overrides);
+	}
+
+	/**
+	 * Checks whether the node name `outer` is allowed to contain a node with
 	 * the node name `inner` as a direct descendant based on the HTML5
 	 * specification.
 	 *
@@ -551,12 +611,10 @@ define([], function Content() {
 	 * http://www.w3.org/html/wg/drafts/html/master/index.html#elements-1
 	 * http://www.whatwg.org/specs/web-apps/current-work/#elements-1
 	 *
-	 * @param {String} outer
-	 *        The node which would contain the other.
-	 * @param {String} inner
-	 *        The node to be nested a child of `outer`.
+	 * @param  {string} outer
+	 * @param  {string} inner
 	 * @return {boolean}
-	 *        True if `inner` is allowed a direct child of `outer`.
+	 * @memberOf content
 	 */
 	function allowsNesting(outer, inner) {
 		var categories;
@@ -592,10 +650,10 @@ define([], function Content() {
 	}
 
 	return {
-		allowsNesting        : allowsNesting,
-		NODES_BLACKLIST      : NODES_BLACKLIST,
-		STYLES_WHITELIST     : STYLES_WHITELIST,
-		ATTRIBUTES_WHITELIST : ATTRIBUTES_WHITELIST
-
+		allowsNesting     : allowsNesting,
+		allowedStyles     : allowedStyles,
+		allowedAttributes : allowedAttributes,
+		disallowedNodes   : disallowedNodes,
+		nodeTranslations  : nodeTranslations
 	};
 });

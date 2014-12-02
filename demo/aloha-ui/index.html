@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Aloha Editor UI Demo</title>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="">
+		<meta name="author" content="">
+		<link rel="icon" href="favicon.ico">
+		<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+		<!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+		<!--[if lt IE 9]>
+			<script src="//oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+			<script src="//oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+		<![endif]-->
+		<!-- Custom styles for this template -->
+		<link href="css/aloha-web.css" rel="stylesheet">
+		<link href="css/aloha-ui.css" rel="stylesheet">
+	</head>
+	<body>
+
+	    <div class="navbar navbar-default navbar-fixed-top funky" role="navigation">
+	    	<div class="container">
+	    		<div class="navbar-header">
+					<a class="navbar-brand" href="http://www.aloha-editor.org"><img src="logo-small.png" alt="Aloha Editor" title="Aloha Editor" /></a>
+				</div>
+
+				<div class="aloha-ui btn-toolbar" role="toolbar">
+					<div class="btn-group">
+						<button type="button" class="aloha-action-B btn btn-default" title="Bold"><b>B</b></button>
+						<button type="button" class="aloha-action-I btn btn-default" title="Italic"><i>I</i></button>
+						<button type="button" class="aloha-action-unformat btn btn-default" title="Remove formatting"><span class="glyphicon glyphicon-remove"></span></button>
+					</div>
+
+					<div class="btn-group">
+						<button type="button" class="aloha-action-OL btn btn-default" title="Ordered List"><span class="glyphicon glyphicon-list"></span></button>
+						<button type="button" class="aloha-action-UL btn btn-default" title="Unordered List"><span class="glyphicon glyphicon-list"></span></button>
+					</div>
+
+					<!--div class="btn-group">
+						<button type="button" class="aloha-action-undo btn btn-default" title="Undo"><span class="glyphicon glyphicon-step-backward"></span></button>
+						<button type="button" class="aloha-action-redo btn btn-default" title="Redo"><span class="glyphicon glyphicon-step-forward"></span></button>
+					</div-->
+
+					<div class="btn-group">
+						<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+							Paragraph <span class="caret"></span>
+						</button>
+						<ul class="dropdown-menu funky" role="menu">
+							<li><a href="#" class="aloha-action-H2">Heading 2</a></li>
+							<li><a href="#" class="aloha-action-H3">Heading 3</a></li>
+							<li><a href="#" class="aloha-action-H4">Heading 4</a></li>
+							<li><a href="#" class="aloha-action-P">Paragraph</a></li>
+							<li><a href="#" class="aloha-action-PRE">Preformatted</a></li>
+						</ul>
+					</div>
+
+					<div class="btn-group">
+						<button type="button" data-activeon="a" title="Create Link"	class="aloha-action-A btn btn-default">
+							<span class="glyphicon glyphicon-link"></span>
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="aloha-3d aloha-ui">
+			<div class="aloha-link-toolbar btn-toolbar funky" role="toolbar">
+				<input type="text" name="href" placeholder="http://www.aloha-editor.org"/ value="">
+				<button class="aloha-action-target btn btn-default" title="Toggle to open link in new window">
+					<span class="glyphicon glyphicon-new-window"></span>
+				</button>
+				<a class="aloha-link-follow btn btn-default" href="#" target="_blank" rel="noreferrer" title="Follow this link">
+					<span class="glyphicon glyphicon-share-alt"></span>
+				</a>
+			</div>
+		</div>
+
+		<div class="aloha-editable">
+			<h1>Aloha Editor UI Demo</h1>
+
+			<p>
+				You wonder how to integrate Aloha Editor with your app? Look no further! <code>aloha-ui.js</code>
+				contains our default implementation that you can use as a starting point to integrate Aloha Editor.
+				<code>aloha-ui-links.js</code> is an addon module, that handles the ui and interactions for
+				<a href="http://www.aloha-editor.org" target="_blank">links</a>.
+			</p>
+
+			<h2>Aloha Editor - the functional WYSIWIG editor</h2>
+
+			<p>
+				Aloha Editor is the first WYSIWIG editor following the <a href="http://en.wikipedia.org/wiki/Functional_programming" target="_blank">functional programming</a> paradigm.
+				It integrates seamlessly with your web application so your users can experience
+				content creation at it's best.
+			</p>
+
+			<ul>
+				<li><b>MS-Word friendly.</b> <i>As you expect it to be.</i><br>
+				Perfect Copy & Paste from MS Word - keep all formatting, loose all the bad code.
+				Click and edit  is all you need with Aloha Editor. Always work on the final document. You see what you get - with every keystroke!</li>
+
+				<li><b>Easy integration.</b> <i>Created with you in mind.</i><br>
+				Just a few lines of code needed to run it in your application. Additional features? Aloha Editor is a stand alone library with a functional and stateless API that provides you with essential editing capabilities not available in browsers.</li>
+
+				<li><b>60 fps.</b> <i>Ridiculously smooth.</i><br>
+				Our stack executes in 5-6ms for most editing operations. Resulting in a frame rate of 60 FPS. Perfect for creating modern, smooth web applications and boosting its user engagement and user interaction.</li>
+
+				<li><b>Lean.</b> <i>Smallest possible filesize.</i><br>
+				Aloha Editor is smaller - with 142KB it's loading quicker and starting faster than other browser based editors.</li>
+
+				<li><b>Full control.</b> <i>Aloha Editor is your content editing API.</i><br>
+				No more contentEditable. Other editors are limited by web browsers capabilities. Aloha Editor isn´t. It gives you full control of the editing experience and the content created by it.</li>
+
+				<li><b>Your UI is our command.</b> <i>Aloha Editor puts your application first.</i><br>
+				Use the clean and modern user interface of Aloha Editor, customize it or build your own according to your needs. Make it an integral part of your web application and the user experience of your customers.</li>
+			</ul>
+		</div>
+
+
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		<script src="js/aloha.min.js"></script>
+		<script src="js/aloha-web.js"></script>
+		<script src="js/aloha-ui.js"></script>
+		<script src="js/aloha-ui-links.js"></script>
+		<script>
+			aloha.dom.query('.aloha-editable', document).forEach(aloha);
+		</script>
+		<script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+ (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga'); ga('create', 'UA-17460389-2', 'auto'); ga('require', 'displayfeatures'); ga('send', 'pageview');</script>
+	</body>
+</html>

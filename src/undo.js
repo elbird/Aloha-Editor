@@ -1,9 +1,9 @@
-/**
- * undo.js is part of Aloha Editor project http://aloha-editor.org
+/** undo.js is part of Aloha Editor project http://aloha-editor.org
  *
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
- * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
+ * Copyright (c) 2010-2013 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ * @namespace undo
  */
 define([
 	'arrays',
@@ -13,8 +13,9 @@ define([
 	'boundaries',
 	'functions',
 	'ranges',
-	'assert'
-], function Undo(
+	'content', // Hack for require-proto
+	'traversing' // Hack for require-proto
+], function (
 	Arrays,
 	Maps,
 	Dom,
@@ -22,9 +23,77 @@ define([
 	Boundaries,
 	Fn,
 	Ranges,
-	Assert
+	__hack1__,
+	__hack2__
 ) {
 	'use strict';
+
+	// Deprecated functions from assert.js
+
+	function assertEqual(a, b) {
+		if (a !== b) {
+			throw Error('assertion error ' + a + ' !== ' + b);
+		}
+	}
+
+	function assertNotEqual(a, b) {
+		if (a === b) {
+			throw Error('assertion error ' + a + ' === ' + b);
+		}
+	}
+
+	function assertFalse(value) {
+		assertEqual(value, false);
+	}
+
+	function assertTrue(value) {
+		assertEqual(value, true);
+	}
+
+	function assertError() {
+		throw Error();
+	}
+
+	// Deprecated functions from boundaries.js
+
+	function beforeNodeBoundary(node) {
+		return [node.parentNode, Dom.nodeIndex(node)];
+	}
+
+	function nodeAtBoundary(boundary) {
+		return Dom.nodeAtOffset(boundary[0], boundary[1]);
+	}
+
+	function nodeBeforeBoundary(boundary) {
+		boundary = Boundaries.normalize(boundary);
+		if (!Boundaries.isNodeBoundary(boundary)) {
+			return boundary[0];
+		}
+		return Boundaries.isAtStart(boundary) ? null : Dom.nthChild(boundary[0], boundary[1] - 1);
+	}
+
+	function nodeAfterBoundary(boundary) {
+		boundary = Boundaries.normalize(boundary);
+		if (!Boundaries.isNodeBoundary(boundary)) {
+			return boundary[0].nextSibling;
+		}
+		return Boundaries.isAtEnd(boundary) ? null : Dom.nthChild(boundary[0], boundary[1]);
+	}
+
+	function precedingTextLength(boundary) {
+		boundary = Boundaries.normalize(boundary);
+		var node = nodeBeforeBoundary(boundary);
+		var len = 0;
+		if (!Boundaries.isNodeBoundary(boundary)) {
+			len += boundary[1];
+			node = node.previousSibling;
+		}
+		while (node && Dom.isTextNode(node)) {
+			len += Dom.nodeLength(node);
+			node = node.previousSibling;
+		}
+		return len;
+	}
 
 	/**
 	 * Creates a new undo context.
@@ -46,6 +115,7 @@ define([
 	 *        maxHistory - how many items to keep in the history
 	 *          (default 1000).
 	 * @return {Undo}
+	 * @memberOf undo
 	 */
 	function Context(elem, opts) {
 		opts = Maps.merge({
@@ -111,7 +181,7 @@ define([
 		while (node && container !== node) {
 			var parent = node.parentNode;
 			if (!parent) {
-				return null;
+				return [];
 			}
 			stepDownPath(path, parent.nodeName, Dom.normalizedNodeIndex(node));
 			node = parent;
@@ -130,25 +200,25 @@ define([
 	function boundaryFromPath(container, path) {
 		for (var i = 0; i < path.length - 1; i++) {
 			var step = path[i];
-			Assert.assert(step[1] === container.nodeName);
+			assertEqual(step[1], container.nodeName);
 			container = Dom.normalizedNthChild(container, step[0]);
 		}
 		var lastStep = Arrays.last(path);
 		var off = lastStep[0];
 		container = Dom.nextWhile(container, Dom.isEmptyTextNode);
 		// NB: container must be non-null at this point.
-		Assert.assert(lastStep[1] === container.nodeName);
+		assertEqual(lastStep[1], container.nodeName);
 		if (Dom.isTextNode(container)) {
 			// Because text offset paths with value 0 are invalid.
-			Assert.assert(off !== 0);
+			assertNotEqual(off, 0);
 			while (off > Dom.nodeLength(container)) {
-				Assert.assert(Dom.isTextNode(container));
+				assertTrue(Dom.isTextNode(container));
 				off -= Dom.nodeLength(container);
 				container = container.nextSibling;
 			}
 			// Because we may have stepped out of a text node.
 			if (!Dom.isTextNode(container)) {
-				Assert.assert(off === 0);
+				assertEqual(off, 0);
 				container = container.parentNode;
 				off = Dom.nodeIndex(container);
 			}
@@ -210,9 +280,9 @@ define([
 	function pathFromBoundary(container, boundary) {
 		boundary = Boundaries.normalize(boundary);
 		var path;
-		var textOff = Boundaries.precedingTextLength(boundary);
+		var textOff = precedingTextLength(boundary);
 		if (textOff) {
-			var node = Boundaries.nodeBefore(boundary);
+			var node = nodeBeforeBoundary(boundary);
 			// Because nodePath() would use the normalizedNodeIndex
 			// which would translate an empty text node after a
 			// non-empty text node to the normalized offset after the
@@ -223,7 +293,7 @@ define([
 		} else if (Boundaries.isAtEnd(boundary)) {
 			path = endOfNodePath(container, boundary[0]);
 		} else {
-			path = nodePath(container, Boundaries.nodeAfter(boundary));
+			path = nodePath(container, nodeAfterBoundary(boundary));
 		}
 		return path;
 	}
@@ -236,12 +306,12 @@ define([
 	 */
 	function incompletePathFromBoundary(container, boundary) {
 		boundary = Boundaries.normalize(boundary);
-		var node = Boundaries.nodeAfter(boundary);
+		var node = nodeAfterBoundary(boundary);
 		// Because if the boundary is between two text nodes, index
 		// normalization performed by nodePath() will use the offset of
 		// the previous text node, while an incomplete path must point
 		// to the normalized index of the next element node.
-		if (Boundaries.precedingTextLength(boundary)) {
+		if (precedingTextLength(boundary)) {
 			node = Dom.nextWhile(node, Dom.isTextNode);
 		}
 		var path;
@@ -258,7 +328,7 @@ define([
 	 * given node.
 	 */
 	function pathBeforeNode(container, node) {
-		return pathFromBoundary(container, Boundaries.fromNode(node));
+		return pathFromBoundary(container, beforeNodeBoundary(node));
 	}
 
 	function recordRange(container, range) {
@@ -288,16 +358,22 @@ define([
 		}
 	}
 
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 *
+	 * @memberOf undo
+	 */
 	function close(context) {
 		if (context.frame) {
-			context.observer.disconnect()
+			context.observer.disconnect();
 			context.frame = null;
 		}
 	}
 
 	/**
 	 * Enters a new frame in the given undo context.
-	 *
+	 * 
 	 * @param context {Undo}
 	 * @param opts {Object.<string,*>}
 	 *        A map of options:
@@ -310,6 +386,7 @@ define([
 	 *        oldRange - a range to record that reflects the range
 	 *          before any changes in this frame happen.
 	 * @return {void}
+	 * @memberOf undo
 	 */
 	function enter(context, opts) {
 		opts = opts || {};
@@ -336,13 +413,13 @@ define([
 	 * Leave a frame in the given undo context.
 	 *
 	 * @param context {Undo}
-	 * @param result {Object.<string.*>}
+	 * @param result {Object.<...string>}
 	 * @return {Frame}
+	 * @memberOf undo
 	 */
 	function leave(context, result) {
 		var frame = context.frame;
-		var observer = context.observer;
-		var upperFrame = context.stack.pop();;
+		var upperFrame = context.stack.pop();
 		if (upperFrame) {
 			partitionRecords(context, frame, frame, upperFrame);
 		} else {
@@ -352,7 +429,7 @@ define([
 		var noObserve = frame.opts.noObserve;
 		// Because we expect either a result to be returned by the
 		// capture function, or observed by the observer, but not both.
-		Assert.assert(!(!noObserve && result && result.changes));
+		assertFalse(!!(!noObserve && result && result.changes));
 		if (noObserve && result && result.changes && result.changes.length) {
 			frame.records.push({changes: result.changes});
 		}
@@ -371,6 +448,7 @@ define([
 	 * @param opts {Object.<string,*>} given as the opts argument to enter()
 	 * @param {function(void):{Object.<string,*>}} given as the result argument to leave()
 	 * @return {Frame} the captured frame
+	 * @memberOf undo
 	 */
 	function capture(context, opts, fn) {
 		enter(context, opts);
@@ -484,14 +562,6 @@ define([
 		return {type: UPDATE_TEXT, node: node, oldValue: oldValue};
 	}
 
-	function anchorNode(record) {
-		if (DELETE_FLAG & record.type) {
-			return record.prevSibling || record.target;
-		} else {
-			return record.node;
-		}
-	}
-
 	// NB: All insert-delete sequences in this table are no-ops:
 	// insert-delete               => no-op
 	// insert-delete-insert        => insert (in inserted)
@@ -536,12 +606,12 @@ define([
 					map[refId] = dels.concat(delsHavingRefs);
 				}
 			} else if (INSERT === type) {
-				Assert.assert(!inserted[id]);
+				assertFalse(!!inserted[id]);
 				inserted[id] =  move;
 			} else {
 				// NB: moves should only contains INSERTs and DELETEs
 				// (not COMPOUND_DELETEs).
-				Assert.error();
+				assertError();
 			}
 		});
 	}
@@ -572,7 +642,7 @@ define([
 	function insertFollowedByInsert(recordA, recordB) {
 		return Dom.followedBy(recordA.node, recordB.node);
 	}
-
+	
 	function prevSiblingFollowedByDelete(prevA, recordB) {
 		var prevB = recordB.prevSibling;
 		var targetB = recordB.target;
@@ -656,7 +726,7 @@ define([
 			});
 		});
 		var containerId = Dom.ensureExpandoId(container);
-		Assert.assert(!index[containerId]);
+		assertFalse(!!index[containerId]);
 		var containerInsert = makeInsert(container);
 		index[containerId] = [containerInsert];
 		recs.forEach(function (record) {
@@ -717,15 +787,16 @@ define([
 	function delPath(container, delRecord, incomplete) {
 		var prevSibling = delRecord.prevSibling;
 		var path;
+		var boundary;
 		if (prevSibling) {
 			var off = Dom.nodeIndex(prevSibling) + 1;
-			var boundary = [prevSibling.parentNode, off];
+			boundary = [prevSibling.parentNode, off];
 			path = (incomplete
 			        ? incompletePathFromBoundary(container, boundary)
 			        : pathFromBoundary(container, boundary));
 		} else {
 			var target = delRecord.target;
-			var boundary = [target, 0];
+			boundary = [target, 0];
 			path = (incomplete
 			        ? incompletePathFromBoundary(container, boundary)
 			        : pathFromBoundary(container, boundary));
@@ -760,9 +831,11 @@ define([
 		var lastInsertNode = null;
 		recordTree.forEach(function (record) {
 			var type = record.type;
+			var path;
+			var node;
 			if (COMPOUND_DELETE === type) {
 				lastInsertNode = null;
-				var path = containerPath.concat(delPath(container, record));
+				path = containerPath.concat(delPath(container, record));
 				var parentPath = containerPath.concat(delPath(container, record, true));
 				var lastDeleteContent = null;
 				record.records.forEach(function (record) {
@@ -780,8 +853,8 @@ define([
 					}
 				});
 			} else if (INSERT === type) {
-				var node = record.node;
-				var path = containerPath.concat(pathBeforeNode(container, node));
+				node = record.node;
+				path = containerPath.concat(pathBeforeNode(container, node));
 				if (lastInsertNode && lastInsertNode === node.previousSibling) {
 					lastInsertContent.push(Dom.clone(node));
 				} else {
@@ -791,19 +864,19 @@ define([
 				lastInsertNode = node;
 			} else if (UPDATE_ATTR === type) {
 				lastInsertNode = null;
-				var node = record.node;
-				var path = containerPath.concat(pathBeforeNode(container, node));
+				node = record.node;
+				path = containerPath.concat(pathBeforeNode(container, node));
 				changes.push(makeUpdateAttrChange(path, node, record.attrs));
 			} else if (UPDATE_TEXT === type) {
 				lastInsertNode = null;
-				var node = record.node;
-				var path = containerPath.concat(pathBeforeNode(container, node));
-				changes.push(makeDeleteChange(path, [document.createTextNode(record.oldValue)]));
+				node = record.node;
+				path = containerPath.concat(pathBeforeNode(container, node));
+				changes.push(makeDeleteChange(path, [node.ownerDocument.createTextNode(record.oldValue)]));
 				changes.push(makeInsertChange(path, [Dom.clone(node)]));
 			} else {
 				// NB: only COMPOUND_DELETEs should occur in a recordTree,
 				// DELETEs should not except as part of a COMPOUND_DELETE.
-				Assert.error();
+				assertError();
 			}
 		});
 	}
@@ -816,17 +889,18 @@ define([
 			var target = record.target;
 			var oldValue = record.oldValue;
 			var type = record.type;
+			var id;
 			if ('attributes' === type) {
 				var name = record.attributeName;
 				var ns = record.attributeNamespace;
-				var id = Dom.ensureExpandoId(target);
+				id = Dom.ensureExpandoId(target);
 				var updateAttrRecord = updateAttr[id] = updateAttr[id] || makeUpdateAttr(target, {});
 				var attrs = updateAttrRecord.attrs;
 				var attr = {oldValue: oldValue, name: name, ns: ns};
 				var key = name + ' ' + ns;
 				attrs[key] = attrs[key] || attr;
 			} else if ('characterData' === type) {
-				var id = Dom.ensureExpandoId(target);
+				id = Dom.ensureExpandoId(target);
 				updateText[id] = updateText[id] || makeUpdateText(target, oldValue);
 			} else if ('childList' === type) {
 				var prevSibling = record.previousSibling;
@@ -837,7 +911,7 @@ define([
 					moves.push(makeInsert(node));
 				});
 			} else {
-				Assert.error();
+				assertError();
 			}
 		});
 		var recordTree = makeRecordTree(container, moves, updateAttr, updateText);
@@ -910,7 +984,7 @@ define([
 		}
 
 		function takeChanges() {
-			if (Dom.equals(beforeSnapshot, observedElem)) {
+			if (Dom.isEqualNode(beforeSnapshot, observedElem)) {
 				return [];
 			}
 			var before = beforeSnapshot;
@@ -942,9 +1016,12 @@ define([
 
 	function applyChange(container, change, range, ranges, textNodes) {
 		var type = change.type;
+		var boundary;
+		var node;
+		var parent;
 		if ('update-attr' === type) {
-			var boundary = boundaryFromPath(container, change.path);
-			var node = Boundaries.nodeAfter(boundary);
+			boundary = boundaryFromPath(container, change.path);
+			node = nodeAfterBoundary(boundary);
 			change.attrs.forEach(function (attr) {
 				Dom.setAttrNS(node, attr.ns, attr.name, attr.newValue);
 			});
@@ -956,7 +1033,7 @@ define([
 				Boundaries.setRange(range, startBoundary, endBoundary);
 			}
 		} else if ('insert' === type) {
-			var boundary = boundaryFromPath(container, change.path);
+			boundary = boundaryFromPath(container, change.path);
 			change.content.forEach(function (node) {
 				var insertNode = Dom.clone(node);
 				if (Dom.isTextNode(insertNode)) {
@@ -965,16 +1042,16 @@ define([
 				boundary = Mutation.insertNodeAtBoundary(insertNode, boundary, true, ranges);
 			});
 		} else if ('delete' === type) {
-			var boundary = boundaryFromPath(container, change.path);
+			boundary = boundaryFromPath(container, change.path);
 			boundary = Mutation.splitBoundary(boundary, ranges);
-			var node = Boundaries.nextNode(boundary);
-			var parent = node.parentNode;
+			node = nodeAtBoundary(boundary);
+			parent = node.parentNode;
 			change.content.forEach(function (removedNode) {
 				var next;
 				if (Dom.isTextNode(removedNode)) {
 					var removedLen = Dom.nodeLength(removedNode);
 					while (removedLen) {
-						Assert.assert(node.nodeName === removedNode.nodeName);
+						assertEqual(node.nodeName, removedNode.nodeName);
 						var len = Dom.nodeLength(node);
 						if (removedLen >= len) {
 							next = node.nextSibling;
@@ -983,8 +1060,8 @@ define([
 							node = next;
 						} else {
 							boundary = Mutation.splitBoundary([node, removedLen], ranges);
-							var nodeBeforeSplit = Boundaries.nodeBefore(boundary);
-							var nodeAfterSplit = Boundaries.nodeAfter(boundary);
+							var nodeBeforeSplit = nodeBeforeBoundary(boundary);
+							var nodeAfterSplit = nodeAfterBoundary(boundary);
 							Mutation.removePreservingRanges(nodeBeforeSplit, ranges);
 							removedLen = 0;
 							textNodes.push(nodeAfterSplit);
@@ -993,13 +1070,13 @@ define([
 					}
 				} else {
 					next = node.nextSibling;
-					Assert.assert(node.nodeName === removedNode.nodeName);
+					assertEqual(node.nodeName, removedNode.nodeName);
 					Mutation.removePreservingRanges(node, ranges);
 					node = next;
 				}
 			});
 		} else {
-			Assert.error();
+			assertError();
 		}
 	}
 
@@ -1039,7 +1116,7 @@ define([
 		} else if ('delete' === type) {
 			inverse = Maps.merge(change, {type: 'insert'});
 		} else {
-			Assert.error();
+			assertError();
 		}
 		return inverse;
 	}
@@ -1141,24 +1218,11 @@ define([
 		}
 		var combinedNode = Dom.clone(oldChange.content[0]);
 		combinedNode.insertData(Dom.nodeLength(combinedNode), newChange.content[0].data);
-		var insertChange = makeInsertChange(oldPath, [combinedNode])
+		var insertChange = makeInsertChange(oldPath, [combinedNode]);
 		var oldRange = oldChangeSet.selection.oldRange;
-		var newRange = newChangeSet.selection.newRange
+		var newRange = newChangeSet.selection.newRange;
 		var rangeUpdateChange = makeRangeUpdateChange(oldRange, newRange);
 		return makeChangeSet(oldChangeSet.meta, [insertChange], rangeUpdateChange);
-	}
-
-	/**
-	 * Sets the interrupted flag in the given undo context.
-	 *
-	 * The interrupted flag specifies that the next change should not be
-	 * combined with the last change.
-	 *
-	 * @param context {Undo}
-	 * @return {void}
-	 */
-	function interruptTyping(context) {
-		context.interrupted = true;
 	}
 
 	/**
@@ -1177,7 +1241,7 @@ define([
 	 * @return {void}
 	 */
 	function advanceHistory(context) {
-		Assert.assert(!context.stack.length);
+		assertFalse(!!context.stack.length);
 		var history = context.history;
 		var historyIndex = context.historyIndex;
 		var frame = context.frame;
@@ -1207,15 +1271,15 @@ define([
 	}
 
 	/**
-	 * Undoes the last changeSet in the history and decreases the history
-	 * index.
+	 * Undoes the last changeSet in the history and decreases the
+	 * history index.
 	 *
-	 * Will set to given range to the recorded range before the changes in the
-	 * changeSet occurred.
-	 *
-	 * @param {Contex}        context
-	 * @param {Range}         range
-	 * @param {Array.<Range>} Ranges to preserve
+	 * @param context {Undo}
+	 * @param range {Range} will be set to the recorded range before the
+	 *        changes in the changeSet occurred.
+	 * @param ranges {Array.<Range>} will be preserved.
+	 * @return {void}
+	 * @memberOf undo
 	 */
 	function undo(context, range, ranges) {
 		advanceHistory(context);
@@ -1237,12 +1301,12 @@ define([
 	 * Redoes a previously undone changeSet in the history and
 	 * increments the history index.
 	 *
-	 * Will set to given range to the recorded range after the changes in the
-	 * changeSet occurred.
-	 *
-	 * @param {Context}       context
-	 * @param {Range}         range
-	 * @param {Array.<Range>} ranges
+	 * @param context {Undo}
+	 * @param range {Range} will be set to the recorded range after the
+	 *        changes in the changeSet occurred.
+	 * @param ranges {Array.<Range>} will be preserved.
+	 * @return {void}
+	 * @memberOf undo
 	 */
 	function redo(context, range, ranges) {
 		advanceHistory(context);
@@ -1260,18 +1324,18 @@ define([
 	}
 
 	return {
-		Context            : Context,
-		enter              : enter,
-		close              : close,
-		leave              : leave,
-		capture            : capture,
-		pathFromBoundary   : pathFromBoundary,
-		changeSetFromFrame : changeSetFromFrame,
-		inverseChangeSet   : inverseChangeSet,
-		applyChangeSet     : applyChangeSet,
-		advanceHistory     : advanceHistory,
-		makeInsertChange   : makeInsertChange,
-		undo               : undo,
-		redo               : redo
+		Context: Context,
+		enter: enter,
+		close: close,
+		leave: leave,
+		capture: capture,
+		pathFromBoundary: pathFromBoundary,
+		changeSetFromFrame: changeSetFromFrame,
+		inverseChangeSet: inverseChangeSet,
+		applyChangeSet: applyChangeSet,
+		advanceHistory: advanceHistory,
+		makeInsertChange: makeInsertChange,
+		undo: undo,
+		redo: redo
 	};
 });

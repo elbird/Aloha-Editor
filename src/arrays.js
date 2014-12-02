@@ -4,8 +4,9 @@
  * Aloha Editor is a WYSIWYG HTML5 inline editing library and editor.
  * Copyright (c) 2010-2014 Gentics Software GmbH, Vienna, Austria.
  * Contributors http://aloha-editor.org/contribution.php
+ * @namespace arrays
  */
-define(['functions'], function Arrays(Fn) {
+define(['functions'], function (Fn) {
 	'use strict';
 
 	/**
@@ -24,6 +25,7 @@ define(['functions'], function Arrays(Fn) {
 	 *        equals operator.
 	 * @return {boolean}
 	 *         True if all items in a and b are equal, false if not.
+	 * @memberOf arrays
 	 */
 	function equal(a, b, equalFn) {
 		var i,
@@ -48,6 +50,7 @@ define(['functions'], function Arrays(Fn) {
 	 *        A value to search for in the given array.
 	 * @return {boolean}
 	 *         True of argument `x` is an element of the set `xs`.
+	 * @memberOf arrays
 	 */
 	function contains(xs, x) {
 		return -1 !== xs.indexOf(x);
@@ -61,6 +64,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param {Array} zs
 	 * @return {Array}
 	 *         The intersection of the sets `xs` and `zs`.
+	 * @memberOf arrays
 	 */
 	function intersect(xs, zs) {
 		return xs.filter(function (x) {
@@ -76,6 +80,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param {Array} zs
 	 * @return {Array}
 	 *         The difference of the sets `xs` and `zs`.
+	 * @memberOf arrays
 	 */
 	function difference(xs, zs) {
 		return xs.filter(function (x) {
@@ -89,19 +94,10 @@ define(['functions'], function Arrays(Fn) {
 	 * @param {Array} xs
 	 * @return {*}
 	 *         Last item in xs, or null if the given array is empty.
+	 * @memberOf arrays
 	 */
 	function last(xs) {
 		return xs.length ? xs[xs.length - 1] : null;
-	}
-
-	/**
-	 * Returns the second item in the given array.
-	 *
-	 * @param {Array} xs
-	 * @return {*}
-	 */
-	function second(xs) {
-		return xs[1];
 	}
 
 	/**
@@ -113,9 +109,10 @@ define(['functions'], function Arrays(Fn) {
 	 *
 	 * @param arrayLikeObject {*}
 	 * @return {Array.<*>}
+	 * @memberOf arrays
 	 */
 	function coerce(arrayLikeObject) {
-		return Array.prototype.slice.call(arrayLikeObject, 0);
+		return Array.prototype.slice.call(arrayLikeObject);
 	}
 
 	/**
@@ -136,6 +133,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param xs {Array.<*>}
 	 * @param fn {function(*):Array.<*>}
 	 * @return {Array.<*>}
+	 * @memberOf arrays
 	 */
 	function mapcat(xs, fn) {
 		return xs.reduce(function(result, x) {
@@ -152,6 +150,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param xs {Array.<*>}
 	 * @param n {number}
 	 * @return {Array.<Array.<*>>}
+	 * @memberOf arrays
 	 */
 	function partition(xs, n) {
 		return xs.reduce(function (result, x) {
@@ -174,6 +173,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param {Array.<*>}           xs
 	 * @param {function(*):boolean} pred
 	 * @return {*}
+	 * @memberOf arrays
 	 */
 	function someIndex(xs, pred) {
 		var result = -1;
@@ -195,6 +195,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param  {Array.<*>}           xs
 	 * @param  {function(*):boolean} pred
 	 * @return {*} One of xs
+	 * @memberOf arrays
 	 */
 	function some(xs, pred) {
 		var index = someIndex(xs, pred);
@@ -212,6 +213,7 @@ define(['functions'], function Arrays(Fn) {
 	 * @param  {Array<*>}            list
 	 * @param  {function(*):boolean} predicate
 	 * @return {Array<Array<*>>}     The prefix and suffix of `list`
+	 * @memberOf arrays
 	 */
 	function split(xs, predicate) {
 		var end = someIndex(xs, predicate);
@@ -219,18 +221,63 @@ define(['functions'], function Arrays(Fn) {
 		return [xs.slice(0, end), xs.slice(end)];
 	}
 
+	/**
+	 * Creates a new array that contains a unique list of entries
+	 * created from the old array. Example:
+	 * [1, 2, 2, 3, 2, 4] => [1, 2, 3, 4]
+	 *
+	 * @param  {Array.<*>} arr
+	 * @return {Array.<*>}
+	 * @memberOf arrays
+	 */
+	function unique(arr) {
+		var set = [];
+		arr.forEach(function (entry) {
+			if (set.indexOf(entry) === -1) {
+				set.push(entry);
+			}
+		});
+		return set;
+	}
+
+	/**
+	 * This function is missing documentation.
+	 * @TODO Complete documentation.
+	 * @memberOf arrays
+	 */
+	function refill(arrays) {
+		var receivers = coerce(arguments).slice(1);
+		for (var i = 0; i < arrays.length; i++) {
+			if (!arrays[i] || !receivers[i]) {
+				return;
+			}
+			receivers[i].length = 0;
+			Array.prototype.splice.apply(receivers[i], [0, 0].concat(arrays[i]));
+		}
+	}
+
+	/**
+	 * Returns true if the given value is an array.
+	 * @memberOf arrays
+	 */
+	function is(obj) {
+		return (Object.prototype.toString.call(obj) === '[object Array]');
+	}
+
 	return {
 		contains   : contains,
 		difference : difference,
 		equal      : equal,
 		intersect  : intersect,
-		second     : second,
+		is         : is,
 		last       : last,
 		coerce     : coerce,
 		mapcat     : mapcat,
 		partition  : partition,
 		some       : some,
 		someIndex  : someIndex,
-		split      : split
+		split      : split,
+		unique     : unique,
+		refill     : refill
 	};
 });

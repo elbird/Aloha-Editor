@@ -83,6 +83,9 @@ var require = (function (wrappedRequire) {
 	}
 
 	function require (modules, fn) {
+		if ('string' === typeof modules) {
+			modules = [modules];
+		}
 		if (!fn) {
 			return wrappedRequire(modules);
 		}
@@ -151,12 +154,12 @@ var define = (function (wrappedDefine) {
 			path = moduleInfo[1];
 		}
 		if (null == module) {
-			throw "The form define([], ...) without module name must be"
-				+ " loaded via a call to require(), and not by"
-				+ " including it via a script tag in the page."
-				+ " Use require('name') to include the module or"
-				+ " use the form define('name', [], ...) to define"
-				+ " the module.";
+			throw 'The form define([], ...) without module name must be'
+			    + ' loaded via a call to require(), and not by'
+			    + ' including it via a script tag in the page.'
+			    + ' Use require(\'name\') to include the module or'
+			    + ' use the form define(\'name\', [], ...) to define'
+			    + ' the module.';
 		}
 		define.deps[module] = deps;
 		define.defs[module] = fn;

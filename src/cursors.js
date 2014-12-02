@@ -8,7 +8,7 @@
 define([
 	'dom',
 	'boundaries'
-], function Cursors(
+], function (
 	Dom,
 	Boundaries
 ) {
@@ -50,7 +50,7 @@ define([
 	 *
 	 * @param {Node} container
 	 *        If a text node, should have a parent node.
-	 * @param {Number} offset
+	 * @param {number} offset
 	 *        If container is a text node, the offset will be ignored.
 	 * @return {Cursor}
 	 */
