@@ -44,12 +44,31 @@ define([
 	Undo
 ) {
 	'use strict';
-
+	var mobile = true;
 	function setSelection(event) {
 		if (event.range) {
-			Ranges.select(event.range);
+			if(event.mobile) {
+				$('mobileHack').data('range', event.range);
+			} else {
+				Ranges.select(event.range);
+			}
 		}
 		return event;
+	}
+
+	function handleMobile(alohaEvent) {
+		var event = alohaEvent.nativeEvent;
+		if (!mobile || !event) {
+			return alohaEvent;
+		}
+		if( event instanceof KeyboardEvent ) {
+			var range = $('mobileHack').data('range');
+			if(range) {
+				alohaEvent.mobileKeystroke = true;
+				alohaEvent.range = range;
+			}
+		}
+		return alohaEvent;
 	}
 
 	function editor(nativeEvent, custom) {
@@ -67,7 +86,8 @@ define([
 				return alohaEvent;
 			},
 			Mouse.handle,
-			Keys.handle
+			Keys.handle,
+			handleMobile
 		)(alohaEvent);
 	}
 

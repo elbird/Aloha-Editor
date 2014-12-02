@@ -3,7 +3,7 @@
 	<head>
 		<title>Aloha Editor</title>
 		<meta charset="UTF-8">
-		<link href='http://fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>
+		<!--<link href='http://fonts.googleapis.com/css?family=Open+Sans:300,700' rel='stylesheet' type='text/css'>-->
 		<link rel="stylesheet" type="text/css" href="../src/aloha.css">
 		<style>
 			body {
@@ -39,6 +39,11 @@
 				content: counters(counter, ".") ") ";
 				margin-left: -1em;
 			}
+			 #mobile-textarea {
+        z-index: -999;
+        position: fixed;
+        display: none;
+    }
 		</style>
 
 		<!-- style id="metaview">
@@ -68,7 +73,7 @@
 		</style -->
 	</head>
 	<body>
-
+<textarea id="mobile-textarea"> </textarea>
 		<div class="aloha-editable">
 			<h1>Aloha Editor</h1>
 			<p>
@@ -130,6 +135,8 @@
 				}
 			}());
 		</script>
+		 <script type="text/javascript" src="/~sebastian/jquery.min.js"></script>
+	<script type="text/javascript" src="test.js"></script>
 	</body>
 </html>
 
